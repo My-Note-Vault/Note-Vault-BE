@@ -1,0 +1,5 @@
+rootProject.name = 'note'
+
+include("common")
+include("note-service")
+include("platform-service")
