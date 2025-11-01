@@ -20,15 +20,14 @@ public class MemberService {
     private final AccountRepository accountRepository;
 
     @Transactional
-    public Long completeProfile(
+    public void completeProfile(
             final CompleteProfileRequest request,
             final Long memberId
     ) {
         Member member = memberRepository.findById(memberId)
                 .orElseThrow(() -> new NoSuchElementException("일치하는 User 가 없습니다!"));
 
-        member.completeProfile(request.getNickname());
-        return member.getId();
+        member.completeProfile(request.getNickname(), request.getProfileImageUrl());
     }
 
     @Transactional

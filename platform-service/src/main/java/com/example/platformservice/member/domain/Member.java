@@ -3,7 +3,6 @@ package com.example.platformservice.member.domain;
 import com.example.common.Auditable;
 import com.example.platformservice.member.domain.value.Provider;
 import com.example.platformservice.member.domain.value.Role;
-import com.example.platformservice.member.ui.dto.CompleteProfileRequest;
 import jakarta.persistence.*;
 import lombok.AccessLevel;
 import lombok.Getter;
@@ -25,18 +24,18 @@ public class Member extends Auditable {
     @Column(nullable = false)
     private String name;
 
-    @Column(nullable = false)
     private String nickname;
+    private String profileImageKey;
+
+    @Column(nullable = false)
+    private String email;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     private Provider provider;
-
     @Column(nullable = false)
     private String providerUserId;
 
-    @Column(nullable = false)
-    private String email;
 
     private Member(
             final Role role,
@@ -44,7 +43,8 @@ public class Member extends Auditable {
             final String nickname,
             final Provider provider,
             final String providerUserId,
-            final String email
+            final String email,
+            final String profileImageKey
     ) {
         this.role = role;
         this.name = name;
@@ -52,6 +52,7 @@ public class Member extends Auditable {
         this.provider = provider;
         this.providerUserId = providerUserId;
         this.email = email;
+        this.profileImageKey = profileImageKey;
     }
 
     public static Member googleSignUp(
@@ -65,11 +66,13 @@ public class Member extends Auditable {
                 "",
                 Provider.GOOGLE,
                 providerUserId,
-                email
+                email,
+                ""
         );
     }
 
-    public void completeProfile(final String nickname) {
+    public void completeProfile(final String nickname, final String profileImageUrl) {
         this.nickname = nickname;
+        this.profileImageKey = profileImageUrl;
     }
 }
