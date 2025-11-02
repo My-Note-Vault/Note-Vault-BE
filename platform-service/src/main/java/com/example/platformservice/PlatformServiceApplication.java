@@ -5,7 +5,9 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.cloud.openfeign.EnableFeignClients;
 
 @EnableFeignClients
-@SpringBootApplication
+@SpringBootApplication(scanBasePackages = {
+        "com.example.common"
+})
 public class PlatformServiceApplication {
 
     public static void main(String[] args) {
