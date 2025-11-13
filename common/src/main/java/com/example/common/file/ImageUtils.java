@@ -25,7 +25,7 @@ public class ImageUtils {
             "image/jpeg", "jpg"
     );
 
-    @Value("${todo}")
+    @Value("${spring.cloud.aws.s3.bucket}")
     private String bucket;
 
     private final S3Presigner s3Presigner;
