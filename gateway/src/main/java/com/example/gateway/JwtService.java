@@ -29,7 +29,7 @@ public class JwtService {
         }
     }
 
-    public String getUsername(final String token) {
+    public String getUserPK(final String token) {
         return Jwts.parserBuilder()
                 .setSigningKey(key)
                 .build()
