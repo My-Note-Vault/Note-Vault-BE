@@ -1,5 +1,6 @@
-rootProject.name = 'note'
+rootProject.name = "note"
 
 include("common")
+include("gateway")
 include("note-service")
 include("platform-service")
