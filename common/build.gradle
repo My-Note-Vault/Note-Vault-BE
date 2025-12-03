@@ -24,6 +24,8 @@ repositories {
     mavenCentral()
 }
 
+
+
 dependencies {
 
     implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
@@ -44,8 +46,14 @@ dependencies {
     // S3
     implementation 'io.awspring.cloud:spring-cloud-aws-starter-s3:3.0.0'
     implementation 'software.amazon.awssdk:s3:2.25.67'
+
+    implementation 'org.springdoc:springdoc-openapi-starter-webmvc-ui:2.6.0'
+
 }
 
 tasks.named('test') {
     useJUnitPlatform()
 }
+
+tasks.bootJar { enabled = false }
+tasks.jar { enabled = true }
