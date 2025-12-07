@@ -72,7 +72,7 @@ public class ReviewDslRepositoryImpl implements ReviewDslRepository {
                 review.id,
                 review.reviewerId,
                 member.nickname,
-                member.profileImageUrl,
+                member.profileImageKey,
                 review.content,
                 review.rating,
                 review.updatedAt
