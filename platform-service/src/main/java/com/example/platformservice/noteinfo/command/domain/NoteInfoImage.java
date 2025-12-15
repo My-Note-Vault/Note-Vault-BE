@@ -11,7 +11,7 @@ import org.hibernate.annotations.SQLDelete;
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @Table(
         name = "noteinfo_image",
-        indexes = @Index(columnList = "noteId")
+        indexes = @Index(columnList = "noteinfoId")
 )
 @SQLDelete(sql = "UPDATE noteinfo_image SET upload_status = DELETED WHERE id = ?")
 @Entity

@@ -19,10 +19,10 @@ public abstract class Image {
     private UploadStatus uploadStatus;
 
     @Column(nullable = false)
-    private String key;
+    private String imageKey;
 
-    protected Image(String key) {
-        this.key = key;
+    protected Image(String imageKey) {
+        this.imageKey = imageKey;
         this.uploadStatus = UploadStatus.PENDING;
     }
 }

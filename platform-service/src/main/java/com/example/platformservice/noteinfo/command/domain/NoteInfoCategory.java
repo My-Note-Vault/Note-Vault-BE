@@ -12,7 +12,7 @@ import lombok.NoArgsConstructor;
 @EqualsAndHashCode(of = "category")
 @Table(
         name = "category",
-        indexes = @Index(columnList = "noteId")
+        indexes = @Index(columnList = "noteinfoId")
 )
 @Entity
 public class NoteInfoCategory {

@@ -47,7 +47,7 @@ public class NoteInfoQueryService {
 
         List<String> infoImageKeys = noteInfo.getImages().stream()
                 .filter(image -> image.getUploadStatus() == UploadStatus.CONFIRMED)
-                .map(Image::getKey)
+                .map(Image::getImageKey)
                 .toList();
 
         List<Category> categories = noteInfo.getCategories().stream()

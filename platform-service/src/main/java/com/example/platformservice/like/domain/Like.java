@@ -11,7 +11,7 @@ import java.time.LocalDateTime;
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @Table(
-        name = "like",
+        name = "likes",
         indexes = {
                 @Index(columnList = "memberId"),
                 @Index(columnList = "noteInfoId, memberId")

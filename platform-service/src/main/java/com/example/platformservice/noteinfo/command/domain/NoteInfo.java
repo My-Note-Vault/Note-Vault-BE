@@ -42,10 +42,10 @@ public class NoteInfo extends Auditable {
     @Column(nullable = false)
     private Status status;
 
-    @OneToMany(mappedBy = "noteinfo", cascade = CascadeType.ALL, orphanRemoval = true)
+    @OneToMany(mappedBy = "noteInfo", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<NoteInfoCategory> categories = new ArrayList<>();
 
-    @OneToMany(mappedBy = "noteinfo", cascade = CascadeType.ALL, orphanRemoval = true)
+    @OneToMany(mappedBy = "noteInfo", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<NoteInfoImage> images = new ArrayList<>();
 
 

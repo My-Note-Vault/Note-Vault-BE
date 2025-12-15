@@ -11,8 +11,7 @@ import java.time.LocalDateTime;
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @Table(
-        name = "recently_viewed_info",
-        indexes = @Index(columnList = "")
+        name = "recently_viewed_info"
 )
 @Entity
 public class RecentlyViewedInfo {
