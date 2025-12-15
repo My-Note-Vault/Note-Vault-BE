@@ -17,9 +17,26 @@ repositories {
     mavenCentral()
 }
 
+ext {
+    set('springCloudVersion', "2025.0.0")
+}
+
+dependencyManagement {
+    imports {
+        mavenBom "org.springframework.cloud:spring-cloud-dependencies:${springCloudVersion}"
+    }
+}
+
 dependencies {
     implementation 'org.springframework.boot:spring-boot-starter-web'
     implementation 'org.springframework.boot:spring-boot-starter-actuator'
+    implementation 'org.springdoc:springdoc-openapi-starter-webmvc-ui:2.8.8'
+
+    // OpenFeign
+    implementation 'org.springframework.cloud:spring-cloud-starter-openfeign'
+
+    implementation project(":platform-service")
+    implementation project(":note-service")
 }
 
 subprojects {
@@ -39,16 +56,7 @@ subprojects {
     dependencies {
         compileOnly 'org.projectlombok:lombok'
         annotationProcessor 'org.projectlombok:lombok'
-
-        implementation 'org.springframework.boot:spring-boot-starter-web'
-
-        implementation project(":gateway")    // 또는 jwt 모듈
-        implementation project(":common")
-        implementation project(":note-service")
-        implementation project(":platform-service")
-
     }
 }
 tasks.bootJar { enabled = true }
 tasks.jar { enabled = false }
-

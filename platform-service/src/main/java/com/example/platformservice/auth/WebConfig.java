@@ -9,7 +9,7 @@ import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 public class WebConfig implements WebMvcConfigurer {
 
     @Value("${spring.security.allowed-domain}")
-    private static String ALLOWED_DOMAIN;
+    private String ALLOWED_DOMAIN;
 
     @Override
     public void addCorsMappings(CorsRegistry registry) {

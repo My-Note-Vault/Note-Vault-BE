@@ -17,11 +17,12 @@ import java.util.Map;
 public class OAuthService {
 
     @Value("${spring.security.oauth2.client.registration.google.client-id}")
-    private final String GOOGLE_CLIENT_ID;
+    private String GOOGLE_CLIENT_ID;
+
     @Value("${spring.security.oauth2.client.registration.google.client-secret}")
-    private final String GOOGLE_CLIENT_SECRET;
+    private String GOOGLE_CLIENT_SECRET;
     @Value("${spring.security.oauth2.client.registration.google.redirect-uri}")
-    private final String GOOGLE_CALLBACK_URL;
+    private String GOOGLE_CALLBACK_URL;
 
     private final MemberRepository memberRepository;
 
