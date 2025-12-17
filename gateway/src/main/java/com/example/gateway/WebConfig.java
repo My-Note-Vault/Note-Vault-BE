@@ -1,4 +1,4 @@
-package com.example.platformservice.auth;
+package com.example.gateway;
 
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Configuration;
