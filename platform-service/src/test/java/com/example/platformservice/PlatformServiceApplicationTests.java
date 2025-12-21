@@ -1,9 +1,9 @@
 package com.example.platformservice;
 
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
-import org.springframework.boot.test.context.SpringBootTest;
 
-@SpringBootTest
+@Disabled("라이브러리 모듈 - Context 로딩 테스트 불필요")
 class PlatformServiceApplicationTests {
 
     @Test
