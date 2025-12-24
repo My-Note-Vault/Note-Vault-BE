@@ -28,11 +28,11 @@ jobs:
 
       - name: Restore application yaml files
         run: |
-          echo "${{ secrets.APPLICATION_YAML }}" | base64 --decode > application.yaml
-          echo "${{ secrets.APPLICATION_COMMON_YAML }}" | base64 --decode > application-common.yaml
-          echo "${{ secrets.APPLICATION_NOTE_YAML }}" | base64 --decode > application-note.yaml
-          echo "${{ secrets.APPLICATION_GATEWAY_YAML }}" | base64 --decode > application-gateway.yaml
-          echo "${{ secrets.APPLICATION_PLATFORM_YAML }}" | base64 --decode > application-platform.yaml
+          base64 --decode <<< "${{ secrets.APPLICATION_YAML }}" > application.yaml
+          base64 --decode <<< "${{ secrets.APPLICATION_COMMON_YAML }}" > application-common.yaml
+          base64 --decode <<< "${{ secrets.APPLICATION_NOTE_YAML }}" > application-note.yaml
+          base64 --decode <<< "${{ secrets.APPLICATION_GATEWAY_YAML }}" > application-gateway.yaml
+          base64 --decode <<< "${{ secrets.APPLICATION_PLATFORM_YAML }}" > application-platform.yaml
 
       # 4. DockerHub 로그인
       - name: Docker Login
