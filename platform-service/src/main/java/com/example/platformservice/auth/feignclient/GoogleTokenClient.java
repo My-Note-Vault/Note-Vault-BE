@@ -3,7 +3,7 @@ package com.example.platformservice.auth.feignclient;
 import org.springframework.cloud.openfeign.FeignClient;
 import org.springframework.stereotype.Component;
 import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RequestBody;
 
 import java.util.Map;
 
@@ -12,11 +12,5 @@ import java.util.Map;
 public interface GoogleTokenClient {
 
     @PostMapping(value = "/token", consumes = "application/x-www-form-urlencoded")
-    Map<String, Object> getToken(
-            @RequestParam("client_id") String clientId,
-            @RequestParam("client_secret") String clientSecret,
-            @RequestParam("code") String code,
-            @RequestParam("redirect_uri") String redirectUri,
-            @RequestParam("grant_type") String grantType
-    );
+    Map<String, Object> getToken(@RequestBody Map<String, ?> body);
 }

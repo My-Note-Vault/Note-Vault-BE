@@ -21,7 +21,7 @@ public class OAuthController {
     // Google callback 처리 (code -> JWT)
     @GetMapping("/callback/google")
     public ResponseEntity<Map<String, Object>> callbackFromGoogle(final @RequestParam String code) {
-        OAuthUserInfo userInfo = oAuthService.handleCallback(code);
+        OAuthUserInfo userInfo = oAuthService.handlerCallback(code);
         String jwt = oAuthService.issueJwt(userInfo);
         return ResponseEntity.ok(Map.of("token", jwt, "user", userInfo));
     }
