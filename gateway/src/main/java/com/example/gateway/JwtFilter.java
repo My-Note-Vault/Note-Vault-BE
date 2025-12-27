@@ -24,6 +24,7 @@ public class JwtFilter implements Filter {
     static final List<WhiteListRule> WHITE_LIST = List.of(
             new WhiteListRule("/api/v1/login/**", "*"),
             new WhiteListRule("/api/v1/signup/**", "*"),
+            new WhiteListRule("/api/v1/oauth/**", "*"),
             new WhiteListRule("/api/v1/note-info", "GET")
     );
 
