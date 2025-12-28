@@ -18,10 +18,6 @@ public class OAuthController {
 
     private final OAuthService oAuthService;
 
-    /**
-     * Google OAuth callback
-     * code → id_token → login / register 분기
-     */
     @GetMapping("/callback/google")
     public ResponseEntity<Map<String, Object>> callbackFromGoogle(
             @RequestParam("code") String code
@@ -29,7 +25,6 @@ public class OAuthController {
         OAuthUserInfo userInfo = oAuthService.handleGoogleCallback(code);
         String jwt = oAuthService.issueJwt(userInfo);
 
-        // 👉 실무에서는 body 반환보다 redirect + cookie 권장
         return ResponseEntity.ok(
                 Map.of(
                         "token", jwt,

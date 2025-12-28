@@ -34,12 +34,8 @@ public class OAuthService {
     private final MemberRepository memberRepository;
     private final JwtProvider jwtProvider;
 
-    /**
-     * Google OAuth callback 처리
-     */
     public OAuthUserInfo handleGoogleCallback(String code) {
         try {
-            // 1️⃣ code → token (Google SDK)
             GoogleTokenResponse tokenResponse =
                     new GoogleAuthorizationCodeTokenRequest(
                             new NetHttpTransport(),
