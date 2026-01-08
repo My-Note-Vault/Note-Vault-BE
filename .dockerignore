@@ -7,10 +7,6 @@ application*.yaml
 *.key
 *.crt
 
-build/
-dist/
-target/
-
 node_modules/
 
 .git
