@@ -3,9 +3,6 @@
 application*.yml
 application*.yaml
 
-*.pem
-*.key
-*.crt
 
 node_modules/
 
