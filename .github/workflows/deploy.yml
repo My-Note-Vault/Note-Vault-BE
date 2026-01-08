@@ -54,26 +54,6 @@ jobs:
           key: ${{ secrets.WEB_SSH_KEY }}
           script: |
             set -e
-            
-            echo "set image"
-            IMAGE=${{ secrets.DOCKERHUB_USERNAME }}/note-vault:latest
-            
-            echo "docker ps"
-            docker ps
-
-            echo "pull image"
-            sudo docker pull $IMAGE
-
-            echo "stop & remove note-vault"
-            sudo docker stop note-vault || true
-            sudo docker rm note-vault || true
-
-            echo "docker run "
-            sudo docker run -d \
-              --name note-vault \
-              --restart unless-stopped \
-              -p 80:8080 \
-              -v /opt/note-vault/config:/app/config:ro \
-              -e SPRING_CONFIG_LOCATION=file:/app/config/application.yaml \
-              $IMAGE
+            /home/ec2-user/deploy/deploy-was.sh
+      
       
