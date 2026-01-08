@@ -57,12 +57,12 @@ jobs:
 
             IMAGE=${{ secrets.DOCKERHUB_USERNAME }}/note-vault:latest
 
-            docker pull $IMAGE
+            sudo docker pull $IMAGE
 
-            docker stop note-vault || true
-            docker rm note-vault || true
+            sudo docker stop note-vault || true
+            sudo docker rm note-vault || true
 
-            docker run -d \
+            sudo docker run -d \
               --name note-vault \
               --restart unless-stopped \
               -p 80:8080 \
