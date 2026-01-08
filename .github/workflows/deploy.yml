@@ -57,6 +57,9 @@ jobs:
             
             echo "set image"
             IMAGE=${{ secrets.DOCKERHUB_USERNAME }}/note-vault:latest
+            
+            echo "docker ps"
+            docker ps
 
             echo "pull image"
             sudo docker pull $IMAGE
