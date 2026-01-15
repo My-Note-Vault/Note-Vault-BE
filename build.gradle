@@ -72,3 +72,7 @@ test {
 }
 tasks.bootJar { enabled = true }
 tasks.jar { enabled = false }
+
+springBoot {
+    mainClass = "com.example.Application"
+}
