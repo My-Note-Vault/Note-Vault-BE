@@ -58,9 +58,6 @@ subprojects {
         compileOnly {
             extendsFrom annotationProcessor
         }
-        runtimeClasspath {
-            extendsFrom implementation
-        }
     }
 
     dependencies {
