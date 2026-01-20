@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <configuration>
-    <property name="LOG_PATH" value="/var/log/note-vault"/>
+    <property name="LOG_PATH" value="/app/logs"/>
     <property name="LOG_FILE" value="${LOG_PATH}/app.log"/>
 
     <appender name="FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
