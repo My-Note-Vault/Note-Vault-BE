@@ -1,5 +1,6 @@
 package com.example.platformservice.like.domain;
 
+
 import jakarta.persistence.*;
 import lombok.AccessLevel;
 import lombok.Getter;
