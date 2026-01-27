@@ -3,6 +3,7 @@ package com.example.platformservice.auth.ui;
 import com.example.platformservice.auth.application.OAuthService;
 import com.example.platformservice.auth.component.dto.OAuthUserInfo;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -11,6 +12,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import java.util.Map;
 
+@Slf4j
 @RequiredArgsConstructor
 @RequestMapping("/api/v1/oauth")
 @RestController
