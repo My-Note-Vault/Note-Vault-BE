@@ -21,11 +21,20 @@ public class GlobalControllerAdvice {
                 .body(error);
     }
 
-    @ExceptionHandler(value = AuthenticationException.class)
-    public ResponseEntity<GlobalErrorFormat> handleAuthenticationExceptions(final Exception ex) {
+    @ExceptionHandler(value = UnauthorizedException.class)
+    public ResponseEntity<GlobalErrorFormat> handleUnauthorizedExceptions(final Exception ex) {
         log.error("error: {}", ex.getMessage(), ex);
 
-        GlobalErrorFormat error = GlobalErrorFormat.of(AUTHENTICATION_ERROR, ex.getMessage());
+        GlobalErrorFormat error = GlobalErrorFormat.of(UNAUTHORIZED_ERROR, ex.getMessage());
+        return ResponseEntity.internalServerError()
+                .body(error);
+    }
+
+    @ExceptionHandler(value = ForbiddenException.class)
+    public ResponseEntity<GlobalErrorFormat> handleForbiddenExceptions(final Exception ex) {
+        log.error("error: {}", ex.getMessage(), ex);
+
+        GlobalErrorFormat error = GlobalErrorFormat.of(FORBIDDEN_ERROR, ex.getMessage());
         return ResponseEntity.internalServerError()
                 .body(error);
     }
