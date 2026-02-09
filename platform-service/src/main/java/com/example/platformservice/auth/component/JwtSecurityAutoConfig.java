@@ -1,4 +1,4 @@
-package com.example.gateway;
+package com.example.platformservice.auth.component;
 
 import jakarta.servlet.Filter;
 import lombok.RequiredArgsConstructor;
@@ -13,7 +13,7 @@ public class JwtSecurityAutoConfig {
 
     @Bean
     public FilterRegistrationBean<Filter> jwtFilterRegistration(JwtFilter jwtFilter) {
-        FilterRegistrationBean<jakarta.servlet.Filter> registration = new FilterRegistrationBean<>();
+        FilterRegistrationBean<Filter> registration = new FilterRegistrationBean<>();
         registration.setFilter(jwtFilter);
         registration.addUrlPatterns("/*");// 모든 요청 필터링
         registration.setOrder(1); // 필터 순서

@@ -1,4 +1,4 @@
-package com.example.gateway;
+package com.example.platformservice.auth.component;
 
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;

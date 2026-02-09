@@ -1,4 +1,4 @@
-package com.example.gateway;
+package com.example.platformservice.auth.component;
 
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jws;
@@ -20,7 +20,7 @@ public class JwtService {
         this.key = Keys.hmacShaKeyFor(secretKey.getBytes());
     }
 
-    public boolean validateToken(final String token) {
+    public boolean isValidTokenExpiration(final String token) {
         try {
             Jws<Claims> claims = Jwts.parserBuilder()
                     .setSigningKey(key)

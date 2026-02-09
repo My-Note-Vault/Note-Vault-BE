@@ -1,15 +1,12 @@
-package com.example.gateway;
+package com.example.platformservice.auth.component;
 
 
-import jakarta.servlet.Filter;
-import jakarta.servlet.FilterChain;
-import jakarta.servlet.ServletException;
-import jakarta.servlet.ServletRequest;
-import jakarta.servlet.ServletResponse;
+import com.example.common.exception.ForbiddenException;
+import jakarta.servlet.*;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
-import org.springframework.util.AntPathMatcher;
 import org.springframework.stereotype.Component;
+import org.springframework.util.AntPathMatcher;
 
 import java.io.IOException;
 import java.util.List;
@@ -52,14 +49,16 @@ public class JwtFilter implements Filter {
         }
 
         String header = req.getHeader("Authorization");
+        // AccessToken 이 존재하지 않는다면
         if (header == null || !header.startsWith("Bearer ")) {
             res.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
-            return;
+            throw new ForbiddenException("access 토큰이 없습니다");
         }
 
         String token = header.substring(7);
 
-        if (!jwtService.validateToken(token)) {
+        // AccessToken 기한이 지났다면
+        if (!jwtService.isValidTokenExpiration(token)) {
             res.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
             return;
         }
