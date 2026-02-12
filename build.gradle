@@ -38,7 +38,6 @@ dependencies {
     implementation project(":platform-service")
     implementation project(":note-service")
     implementation project(":common")
-    implementation project(":gateway")
 
     // Test
     testImplementation 'org.springframework.boot:spring-boot-starter-test'
