@@ -15,7 +15,7 @@ import java.util.Date;
 public class JwtService {
 
     private final Key key;
-    private final long expiration = 1000 * 60 * 60; // 1h
+    private static final long EXPIRATION = 1000L * 60 * 60; // 1h
 
     public JwtService(@Value("${jwt.secret-key}") String secretKey) {
         this.key = Keys.hmacShaKeyFor(secretKey.getBytes());
@@ -26,7 +26,7 @@ public class JwtService {
                 .setSubject(email)
                 .claim("memberId", memberId)
                 .setIssuedAt(new Date())
-                .setExpiration(new Date(System.currentTimeMillis() + expiration))
+                .setExpiration(new Date(System.currentTimeMillis() + EXPIRATION))
                 .signWith(key)
                 .compact();
     }
@@ -44,7 +44,7 @@ public class JwtService {
         }
     }
 
-    public Long getUserPK(final String token) {
+    public Long getMemberId(final String token) {
         return Jwts.parserBuilder()
                 .setSigningKey(key)
                 .build()
