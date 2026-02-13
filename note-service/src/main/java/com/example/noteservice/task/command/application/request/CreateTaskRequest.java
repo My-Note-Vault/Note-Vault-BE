@@ -1,21 +1,14 @@
 package com.example.noteservice.task.command.application.request;
 
 import com.example.noteservice.task.command.domain.Status;
-import jakarta.validation.constraints.NotBlank;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 
 @Getter
 @RequiredArgsConstructor
-public class EditTaskRequest {
+public class CreateTaskRequest {
 
-    @NotBlank
-    private final Long taskId;
-    @NotBlank
-    private final String title;
-    @NotBlank
-    private final String content;
-    @NotBlank
     private final Status status;
-
+    private final String title;
+    private final String content;
 }

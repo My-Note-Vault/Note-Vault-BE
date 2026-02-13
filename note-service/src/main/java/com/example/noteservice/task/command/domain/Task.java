@@ -32,21 +32,30 @@ public class Task extends Auditable {
     @Column(columnDefinition = "MEDIUMTEXT")
     private String content;
 
-
-    public Task(final Long authorId) {
+    public Task(
+            final Long authorId,
+            final String title,
+            final String content,
+            final Status status
+    ) {
         this.authorId = authorId;
+        this.title = title;
+        this.content = content;
+        this.status = status;
     }
 
     public void edit(
             final Long authorId,
             final String title,
-            final String content
+            final String content,
+            final Status status
     ) {
         if (!this.authorId.equals(authorId)) {
             throw new NoSuchElementException("자신의 노트가 아닙니다!");
         }
-        this.title = title;
-        this.content = content;
+        this.title = title == null ? this.title : title;
+        this.content = content == null ? this.content : content;
+        this.status = status == null ? this.status : status;
     }
 
 }
