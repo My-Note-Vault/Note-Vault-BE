@@ -1,4 +1,4 @@
-package com.example.platformservice.auth.component;
+package com.example.common.jwt;
 
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jws;
@@ -15,9 +15,20 @@ import java.util.Date;
 public class JwtService {
 
     private final Key key;
+    private final long expiration = 1000 * 60 * 60; // 1h
 
     public JwtService(@Value("${jwt.secret-key}") String secretKey) {
         this.key = Keys.hmacShaKeyFor(secretKey.getBytes());
+    }
+
+    public String createToken(final Long memberId, final String email) {
+        return Jwts.builder()
+                .setSubject(email)
+                .claim("memberId", memberId)
+                .setIssuedAt(new Date())
+                .setExpiration(new Date(System.currentTimeMillis() + expiration))
+                .signWith(key)
+                .compact();
     }
 
     public boolean isValidTokenExpiration(final String token) {
@@ -33,13 +44,13 @@ public class JwtService {
         }
     }
 
-    public String getUserPK(final String token) {
+    public Long getUserPK(final String token) {
         return Jwts.parserBuilder()
                 .setSigningKey(key)
                 .build()
                 .parseClaimsJws(token)
                 .getBody()
-                .getSubject();
+                .get("memberId", Long.class);
     }
 
 }

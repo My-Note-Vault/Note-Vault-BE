@@ -1,6 +1,6 @@
 package com.example.platformservice.auth.application;
 
-import com.example.platformservice.auth.component.JwtProvider;
+import com.example.common.jwt.JwtService;
 import com.example.platformservice.auth.component.dto.OAuthUserInfo;
 import com.example.platformservice.auth.feignclient.GoogleTokenClient;
 import com.example.platformservice.auth.feignclient.GoogleUserClient;
@@ -18,7 +18,6 @@ import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.security.SecureRandom;
 import java.util.Base64;
-import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
@@ -39,7 +38,7 @@ public class OAuthService {
     private final GoogleTokenClient googleTokenClient;
     private final GoogleUserClient googleUserClient;
     private final MemberRepository memberRepository;
-    private final JwtProvider jwtProvider;
+    private final JwtService jwtService;
 
     private final Map<String, String> sessionStore = new ConcurrentHashMap<>();
 
@@ -118,7 +117,7 @@ public class OAuthService {
     }
 
     public String issueJwt(OAuthUserInfo userInfo) {
-        return jwtProvider.createToken(
+        return jwtService.createToken(
                 userInfo.getUserId(),
                 userInfo.getEmail()
         );

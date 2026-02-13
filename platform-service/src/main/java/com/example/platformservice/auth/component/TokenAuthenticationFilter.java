@@ -2,6 +2,7 @@ package com.example.platformservice.auth.component;
 
 
 import com.example.common.exception.ForbiddenException;
+import com.example.common.jwt.JwtService;
 import jakarta.servlet.*;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
@@ -13,7 +14,7 @@ import java.util.List;
 
 
 @Component
-public class JwtFilter implements Filter {
+public class TokenAuthenticationFilter implements Filter {
 
     private final JwtService jwtService;
     private final AntPathMatcher matcher = new AntPathMatcher();
@@ -25,7 +26,7 @@ public class JwtFilter implements Filter {
             new WhiteListRule("/api/v1/note-info", "GET")
     );
 
-    public  JwtFilter(JwtService jwtService) {
+    public TokenAuthenticationFilter(JwtService jwtService) {
         this.jwtService = jwtService;
     }
 

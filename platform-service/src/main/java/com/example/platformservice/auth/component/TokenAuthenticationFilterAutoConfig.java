@@ -9,12 +9,14 @@ import org.springframework.stereotype.Component;
 
 @RequiredArgsConstructor
 @Component
-public class JwtSecurityAutoConfig {
+public class TokenAuthenticationFilterAutoConfig {
 
     @Bean
-    public FilterRegistrationBean<Filter> jwtFilterRegistration(JwtFilter jwtFilter) {
+    public FilterRegistrationBean<Filter> tokenAuthenticationFilterRegistration(
+            final TokenAuthenticationFilter tokenAuthenticationFilter
+    ) {
         FilterRegistrationBean<Filter> registration = new FilterRegistrationBean<>();
-        registration.setFilter(jwtFilter);
+        registration.setFilter(tokenAuthenticationFilter);
         registration.addUrlPatterns("/*");// 모든 요청 필터링
         registration.setOrder(1); // 필터 순서
         return registration;
