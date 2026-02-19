@@ -1,4 +1,4 @@
-package com.example.noteservice.task.command.domain;
+package com.example.workspace.task.command.domain;
 
 import org.springframework.data.jpa.repository.JpaRepository;
 

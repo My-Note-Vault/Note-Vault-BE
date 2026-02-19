@@ -1,11 +1,11 @@
-package com.example.noteservice.task.ui;
+package com.example.workspace.task.ui;
 
-import com.example.noteservice.task.command.application.TaskCommandService;
-import com.example.noteservice.task.command.application.request.CreateTaskRequest;
-import com.example.noteservice.task.command.application.request.EditTaskRequest;
-import com.example.noteservice.task.command.application.request.UpdateTaskStatusRequest;
-import com.example.noteservice.task.command.domain.Task;
-import com.example.noteservice.task.query.TaskQueryService;
+import com.example.workspace.task.command.application.TaskCommandService;
+import com.example.workspace.task.command.application.request.CreateTaskRequest;
+import com.example.workspace.task.command.application.request.EditTaskRequest;
+import com.example.workspace.task.command.application.request.UpdateTaskStatusRequest;
+import com.example.workspace.task.command.domain.Task;
+import com.example.workspace.task.query.TaskQueryService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;

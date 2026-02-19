@@ -1,8 +1,8 @@
-package com.example.noteservice.subtask.command.application;
+package com.example.workspace.subtask.command.application;
 
-import com.example.noteservice.subtask.command.domain.Status;
-import com.example.noteservice.subtask.command.domain.SubTask;
-import com.example.noteservice.subtask.command.domain.SubTaskRepository;
+import com.example.workspace.subtask.command.domain.Status;
+import com.example.workspace.subtask.command.domain.SubTask;
+import com.example.workspace.subtask.command.domain.SubTaskRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;

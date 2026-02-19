@@ -1,6 +1,6 @@
-package com.example.noteservice.task.command.application.request;
+package com.example.workspace.task.command.application.request;
 
-import com.example.noteservice.task.command.domain.Status;
+import com.example.workspace.task.command.domain.Status;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 

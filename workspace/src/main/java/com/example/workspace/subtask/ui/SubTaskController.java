@@ -1,10 +1,10 @@
-package com.example.noteservice.subtask.ui;
+package com.example.workspace.subtask.ui;
 
-import com.example.noteservice.subtask.command.application.SubTaskCommandService;
-import com.example.noteservice.subtask.command.application.request.CreateSubTaskRequest;
-import com.example.noteservice.subtask.command.application.request.EditSubTaskRequest;
-import com.example.noteservice.subtask.command.domain.SubTask;
-import com.example.noteservice.subtask.query.SubTaskQueryService;
+import com.example.workspace.subtask.command.application.SubTaskCommandService;
+import com.example.workspace.subtask.command.application.request.CreateSubTaskRequest;
+import com.example.workspace.subtask.command.application.request.EditSubTaskRequest;
+import com.example.workspace.subtask.command.domain.SubTask;
+import com.example.workspace.subtask.query.SubTaskQueryService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;

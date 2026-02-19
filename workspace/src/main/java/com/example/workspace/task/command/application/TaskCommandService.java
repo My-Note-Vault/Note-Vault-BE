@@ -1,8 +1,8 @@
-package com.example.noteservice.task.command.application;
+package com.example.workspace.task.command.application;
 
-import com.example.noteservice.task.command.domain.Status;
-import com.example.noteservice.task.command.domain.Task;
-import com.example.noteservice.task.command.domain.TaskRepository;
+import com.example.workspace.task.command.domain.Status;
+import com.example.workspace.task.command.domain.Task;
+import com.example.workspace.task.command.domain.TaskRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;

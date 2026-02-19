@@ -1,4 +1,4 @@
-package com.example.noteservice.subtask.command.domain;
+package com.example.workspace.task.command.domain;
 
 import lombok.Getter;
 

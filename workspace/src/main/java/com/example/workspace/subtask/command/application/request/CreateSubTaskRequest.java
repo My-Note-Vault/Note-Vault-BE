@@ -1,6 +1,6 @@
-package com.example.noteservice.subtask.command.application.request;
+package com.example.workspace.subtask.command.application.request;
 
-import com.example.noteservice.subtask.command.domain.Status;
+import com.example.workspace.subtask.command.domain.Status;
 import jakarta.validation.constraints.NotBlank;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;

@@ -1,16 +1,16 @@
-package com.example.noteservice.subtask.command.application.request;
+package com.example.workspace.task.command.application.request;
 
-import com.example.noteservice.subtask.command.domain.Status;
+import com.example.workspace.task.command.domain.Status;
 import jakarta.validation.constraints.NotBlank;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 
 @Getter
 @RequiredArgsConstructor
-public class EditSubTaskRequest {
+public class EditTaskRequest {
 
     @NotBlank
-    private final Long subTaskId;
+    private final Long taskId;
     @NotBlank
     private final String title;
     @NotBlank
