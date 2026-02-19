@@ -1,4 +1,4 @@
-package com.example.noteservice.trivia.command.domain;
+package com.example.workspace.trivia.command.domain;
 
 import org.springframework.data.jpa.repository.JpaRepository;
 

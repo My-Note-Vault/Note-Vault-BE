@@ -1,4 +1,4 @@
-package com.example.noteservice.trivia.command.application.request;
+package com.example.workspace.trivia.command.application.request;
 
 import jakarta.validation.constraints.NotBlank;
 import lombok.Getter;
@@ -14,5 +14,5 @@ public class CreateTriviaRequest {
     private final String title;
 
     private final String content;
-    private final Boolean isHidden;
+    private final Boolean isPublic;
 }

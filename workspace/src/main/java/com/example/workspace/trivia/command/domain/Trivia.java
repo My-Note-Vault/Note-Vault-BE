@@ -1,4 +1,4 @@
-package com.example.noteservice.trivia.command.domain;
+package com.example.workspace.trivia.command.domain;
 
 import com.example.common.Auditable;
 import jakarta.persistence.*;
@@ -33,7 +33,7 @@ public class Trivia extends Auditable {
     @Column(columnDefinition = "MEDIUMTEXT")
     private String content;
 
-    private Boolean isHidden;
+    private Boolean isPublic;
 
 
     public Trivia(
@@ -41,29 +41,31 @@ public class Trivia extends Auditable {
             final Long parentTaskId,
             final String title,
             final String content,
-            final Boolean isHidden
+            final Boolean isPublic
     ) {
         this.authorId = authorId;
         this.parentTaskId = parentTaskId;
         this.title = title;
         this.content = content;
 
-        this.isHidden = Objects.requireNonNullElse(isHidden, false);
+        this.isPublic = Objects.requireNonNullElse(isPublic, false);
 
     }
 
     public void edit(
             final Long authorId,
+            final Long parentTaskId,
             final String title,
             final String content,
-            final Boolean isHidden
+            final Boolean isPublic
     ) {
         if (!this.authorId.equals(authorId)) {
             throw new NoSuchElementException("자신의 노트가 아닙니다!");
         }
+        this.parentTaskId = parentTaskId == null ? this.parentTaskId : parentTaskId;
         this.title = title == null ? this.title : title;
         this.content = content == null ? this.content : content;
-        this.isHidden = isHidden == null ? this.isHidden : isHidden;
+        this.isPublic = isPublic == null ? this.isPublic : isPublic;
     }
 
 
