@@ -16,7 +16,7 @@ public class SubTaskQueryService {
 
     private final SubTaskRepository subTaskRepository;
 
-    public SubTask findTaskById(
+    public SubTask findSubTaskById(
             final Long authorId,
             final Long subTaskId
     ) {
@@ -29,7 +29,7 @@ public class SubTaskQueryService {
         return subTask;
     }
 
-    public List<SubTask> findAllTasksByAuthorId(final Long authorId) {
+    public List<SubTask> findAllSubTasksByAuthorId(final Long authorId) {
         return subTaskRepository.findAllByAuthorId(authorId);
     }
 

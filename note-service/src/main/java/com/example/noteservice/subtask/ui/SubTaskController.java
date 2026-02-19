@@ -22,17 +22,17 @@ public class SubTaskController {
     private final SubTaskQueryService taskQueryService;
 
     @GetMapping
-    public ResponseEntity<SubTask> findSpecificTask(
+    public ResponseEntity<SubTask> findSpecificSubTask(
             @RequestParam final Long authorId,
             @RequestParam final Long taskId
     ) {
-        SubTask task = taskQueryService.findTaskById(authorId, taskId);
+        SubTask task = taskQueryService.findSubTaskById(authorId, taskId);
         return ResponseEntity.ok(task);
     }
 
     @GetMapping("/all")
     public ResponseEntity<List<SubTask>> findAllSubTasks(@RequestParam final Long authorId) {
-        List<SubTask> allTasks = taskQueryService.findAllTasksByAuthorId(authorId);
+        List<SubTask> allTasks = taskQueryService.findAllSubTasksByAuthorId(authorId);
         return ResponseEntity.ok(allTasks);
     }
 
@@ -56,7 +56,7 @@ public class SubTaskController {
             @RequestBody final EditSubTaskRequest request,
             @RequestAttribute(AUTHORIZED_MEMBER_ID) final Long memberId
     ) {
-        subTaskCommandService.editTask(
+        subTaskCommandService.editSubTask(
                 memberId,
                 request.getSubTaskId(),
                 request.getTitle(),
@@ -71,7 +71,7 @@ public class SubTaskController {
             @PathVariable final Long subTaskId,
             @RequestAttribute(AUTHORIZED_MEMBER_ID) final Long memberId
     ) {
-        subTaskCommandService.deleteTask(memberId, subTaskId);
+        subTaskCommandService.deleteSubTask(memberId, subTaskId);
         return ResponseEntity.noContent().build();
     }
 

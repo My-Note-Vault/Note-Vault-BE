@@ -31,7 +31,7 @@ public class SubTaskCommandService {
 
 
     @Transactional
-    public void editTask(final Long memberId, final Long subTaskId, final String title, final String content, final Status status) {
+    public void editSubTask(final Long memberId, final Long subTaskId, final String title, final String content, final Status status) {
         SubTask subTask = subTaskRepository.findById(subTaskId)
                 .orElseThrow(() -> new NoSuchElementException("Task 를 찾을 수 없습니다"));
 
@@ -39,7 +39,7 @@ public class SubTaskCommandService {
     }
 
     @Transactional
-    public void deleteTask(final Long memberId, final Long subTaskId) {
+    public void deleteSubTask(final Long memberId, final Long subTaskId) {
         SubTask subTask = subTaskRepository.findById(subTaskId)
                 .orElseThrow(() -> new NoSuchElementException("Task 를 찾을 수 없습니다"));
 
