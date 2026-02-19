@@ -3,6 +3,7 @@ package com.example.noteservice.task.ui;
 import com.example.noteservice.task.command.application.TaskCommandService;
 import com.example.noteservice.task.command.application.request.CreateTaskRequest;
 import com.example.noteservice.task.command.application.request.EditTaskRequest;
+import com.example.noteservice.task.command.application.request.UpdateTaskStatusRequest;
 import com.example.noteservice.task.command.domain.Task;
 import com.example.noteservice.task.query.TaskQueryService;
 import lombok.RequiredArgsConstructor;
@@ -60,6 +61,19 @@ public class TaskController {
                 request.getTaskId(),
                 request.getTitle(),
                 request.getContent(),
+                request.getStatus()
+        );
+        return ResponseEntity.noContent().build();
+    }
+
+    @PatchMapping("/status")
+    public ResponseEntity<Void> updateStatus(
+            @RequestBody UpdateTaskStatusRequest request,
+            @RequestAttribute(AUTHORIZED_MEMBER_ID) final Long memberId
+    ) {
+        taskCommandService.updateStatus(
+                memberId,
+                request.getTaskId(),
                 request.getStatus()
         );
         return ResponseEntity.noContent().build();

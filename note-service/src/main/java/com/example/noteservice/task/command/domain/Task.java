@@ -6,8 +6,6 @@ import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
-import java.util.NoSuchElementException;
-
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @Table(
@@ -51,11 +49,18 @@ public class Task extends Auditable {
             final Status status
     ) {
         if (!this.authorId.equals(authorId)) {
-            throw new NoSuchElementException("자신의 노트가 아닙니다!");
+            throw new IllegalArgumentException("자신의 노트가 아닙니다!");
         }
         this.title = title == null ? this.title : title;
         this.content = content == null ? this.content : content;
         this.status = status == null ? this.status : status;
+    }
+
+    public void updateStatus(final Long memberId, final Status status) {
+        if (!this.authorId.equals(memberId)) {
+            throw new IllegalArgumentException("자신의 노트가 아닙니다!");
+        }
+        this.status = status;
     }
 
 }

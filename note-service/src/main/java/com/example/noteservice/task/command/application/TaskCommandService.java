@@ -28,13 +28,26 @@ public class TaskCommandService {
         return task.getId();
     }
 
-
     @Transactional
-    public void editTask(final Long memberId, final Long taskId, final String title, final String content, final Status status) {
+    public void editTask(
+            final Long memberId,
+            final Long taskId,
+            final String title,
+            final String content,
+            final Status status
+    ) {
         Task task = taskRepository.findById(taskId)
                 .orElseThrow(() -> new NoSuchElementException("Task 를 찾을 수 없습니다"));
 
         task.edit(memberId, title, content, status);
+    }
+
+    @Transactional
+    public void updateStatus(final Long memberId, final Long taskId, final Status status) {
+        Task task = taskRepository.findById(taskId)
+                .orElseThrow(() -> new NoSuchElementException("Task 를 찾을 수 없습니다"));
+
+        task.updateStatus(memberId, status);
     }
 
     @Transactional
