@@ -6,6 +6,8 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDateTime;
+import java.util.List;
 import java.util.NoSuchElementException;
 
 @RequiredArgsConstructor
@@ -22,7 +24,20 @@ public class DailyNoteCommandService {
             final String memo,
             final Boolean isCollapsed
     ) {
-        DailyNote dailyNote = new DailyNote(memberId, todayTodoList, tomorrowTodoList, memo, isCollapsed);
+        List<DailyNote> todayDailyNote = dailyNoteRepository.findAllByCreatedAt(LocalDateTime.now());
+        if (!todayDailyNote.isEmpty()) {
+            return todayDailyNote.getFirst().getId();
+        }
+
+        // 여기부터가 노트 생성로직
+        List<DailyNote> yesterdayDailyNote = dailyNoteRepository.findAllByCreatedAt(LocalDateTime.now().minusDays(1));
+        if (yesterdayDailyNote.isEmpty()) {
+            DailyNote dailyNote = new DailyNote(memberId, todayTodoList, tomorrowTodoList, memo, isCollapsed);
+            dailyNoteRepository.save(dailyNote);
+        }
+
+        DailyNote yesterdayNote = yesterdayDailyNote.getFirst();
+        DailyNote dailyNote = new DailyNote(memberId, yesterdayNote.getTomorrowTodoList(), tomorrowTodoList, memo, isCollapsed);
         dailyNoteRepository.save(dailyNote);
 
         return dailyNote.getId();
