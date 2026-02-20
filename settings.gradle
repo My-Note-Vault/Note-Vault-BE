@@ -1,5 +1,5 @@
 rootProject.name = "note"
 
 include("common")
-include("note-service")
+include("workspace")
 include("platform-service")
