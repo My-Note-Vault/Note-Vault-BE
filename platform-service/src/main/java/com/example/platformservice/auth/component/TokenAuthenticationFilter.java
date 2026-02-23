@@ -1,6 +1,7 @@
 package com.example.platformservice.auth.component;
 
 
+import com.example.common.CommonConstant;
 import com.example.common.exception.ForbiddenException;
 import com.example.common.jwt.JwtService;
 import jakarta.servlet.*;
@@ -65,7 +66,7 @@ public class TokenAuthenticationFilter implements Filter {
         }
 
         // 필요하면 Request Attribute 전달
-        req.setAttribute("X-User-Id", jwtService.getUserPK(token));
+        req.setAttribute(CommonConstant.AUTHORIZED_MEMBER_ID, jwtService.getMemberId(token));
         chain.doFilter(request, response);
     }
 
