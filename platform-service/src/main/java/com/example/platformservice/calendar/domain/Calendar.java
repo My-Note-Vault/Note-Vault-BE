@@ -38,14 +38,4 @@ public class Calendar {
         this.date = LocalDate.parse(date, DateTimeFormatter.BASIC_ISO_DATE);
         this.isHoliday = "Y".equalsIgnoreCase(isHoliday);
     }
-
-    public Calendar(
-            final String holidayName,
-            final LocalDate date,
-            final Boolean isHoliday
-    ) {
-        this.holidayName = holidayName;
-        this.date = date;
-        this.isHoliday = isHoliday;
-    }
 }
