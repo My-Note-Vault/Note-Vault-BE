@@ -1,6 +1,6 @@
 package com.example.workspace.task.command.application.request;
 
-import com.example.workspace.task.command.domain.Status;
+import com.example.workspace.task.command.domain.value.Status;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 

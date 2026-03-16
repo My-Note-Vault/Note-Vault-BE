@@ -25,13 +25,18 @@ public class DailyNote extends Auditable {
     @Column(nullable = false, unique = true)
     private Long authorId;
 
-    private String todayTodoList;
-    private String tomorrowTodoList;
+    private String todayTodo;
+    private String tomorrowTodo;
 
     private String memo;
 
     private Boolean isCollapsed;
 
+
+    public DailyNote(final Long authorId, final String todayTodo) {
+        this.authorId = authorId;
+        this.todayTodo = todayTodo;
+    }
 
     public DailyNote(
             final Long authorId,
@@ -41,8 +46,8 @@ public class DailyNote extends Auditable {
             final Boolean isCollapsed
     ) {
         this.authorId = authorId;
-        this.todayTodoList = todayTodoList;
-        this.tomorrowTodoList = tomorrowTodoList;
+        this.todayTodo = todayTodoList;
+        this.tomorrowTodo = tomorrowTodoList;
         this.memo = memo;
 
         this.isCollapsed = Objects.requireNonNullElse(isCollapsed, false);
@@ -58,8 +63,8 @@ public class DailyNote extends Auditable {
         if (!this.authorId.equals(authorId)) {
             throw new NoSuchElementException("자신의 노트가 아닙니다!");
         }
-        this.todayTodoList = todayTodoList == null ? this.todayTodoList : todayTodoList;
-        this.tomorrowTodoList = tomorrowTodoList == null ? this.tomorrowTodoList : tomorrowTodoList;
+        this.todayTodo = todayTodoList == null ? this.todayTodo : todayTodoList;
+        this.tomorrowTodo = tomorrowTodoList == null ? this.tomorrowTodo : tomorrowTodoList;
         this.memo = memo == null ? this.memo : memo;
         this.isCollapsed = isCollapsed == null ? this.isCollapsed : isCollapsed;
     }

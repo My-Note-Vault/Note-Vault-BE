@@ -1,6 +1,6 @@
 package com.example.platformservice.review.ui;
 
-import com.example.common.file.ImageUtils;
+import com.example.common.file.image.ImageUtils;
 import com.example.platformservice.review.command.application.ReviewCommandService;
 import com.example.platformservice.review.command.application.request.DeleteReviewRequest;
 import com.example.platformservice.review.command.application.request.ReviewerImageKeysRequest;

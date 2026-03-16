@@ -1,7 +1,7 @@
 package com.example.platformservice.noteinfo.ui;
 
-import com.example.common.file.ImageUtils;
-import com.example.common.file.UploadImageResponse;
+import com.example.common.file.image.ImageUtils;
+import com.example.common.file.image.UploadImageResponse;
 import com.example.platformservice.noteinfo.command.application.NoteInfoCommandService;
 import com.example.platformservice.noteinfo.command.application.request.*;
 import com.example.platformservice.noteinfo.command.domain.value.Category;

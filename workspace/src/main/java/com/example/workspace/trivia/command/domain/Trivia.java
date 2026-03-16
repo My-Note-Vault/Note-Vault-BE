@@ -23,7 +23,7 @@ public class Trivia extends Auditable {
     private Long id;
 
     @Column(nullable = false)
-    private Long parentTaskId;
+    private Long parentSubTaskId;
 
     @Column(nullable = false, unique = true)
     private Long authorId;
@@ -38,13 +38,13 @@ public class Trivia extends Auditable {
 
     public Trivia(
             final Long authorId,
-            final Long parentTaskId,
+            final Long parentSubTaskId,
             final String title,
             final String content,
             final Boolean isPublic
     ) {
         this.authorId = authorId;
-        this.parentTaskId = parentTaskId;
+        this.parentSubTaskId = parentSubTaskId;
         this.title = title;
         this.content = content;
 
@@ -62,7 +62,7 @@ public class Trivia extends Auditable {
         if (!this.authorId.equals(authorId)) {
             throw new NoSuchElementException("자신의 노트가 아닙니다!");
         }
-        this.parentTaskId = parentTaskId == null ? this.parentTaskId : parentTaskId;
+        this.parentSubTaskId = parentTaskId == null ? this.parentSubTaskId : parentTaskId;
         this.title = title == null ? this.title : title;
         this.content = content == null ? this.content : content;
         this.isPublic = isPublic == null ? this.isPublic : isPublic;

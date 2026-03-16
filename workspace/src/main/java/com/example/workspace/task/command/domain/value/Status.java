@@ -1,4 +1,4 @@
-package com.example.workspace.task.command.domain;
+package com.example.workspace.task.command.domain.value;
 
 import lombok.Getter;
 

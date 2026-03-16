@@ -1,4 +1,4 @@
-package com.example.common.file;
+package com.example.common.file.image;
 
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;

@@ -8,7 +8,7 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 
 import com.example.common.api.NoteReader;
 import com.example.common.api.SnapshotClient;
-import com.example.common.file.ImageUtils;
+import com.example.common.file.image.ImageUtils;
 import com.example.platformservice.auth.feignclient.GoogleTokenClient;
 import com.example.platformservice.auth.feignclient.GoogleUserClient;
 

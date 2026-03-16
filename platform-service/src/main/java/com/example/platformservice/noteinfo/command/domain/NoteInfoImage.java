@@ -1,6 +1,6 @@
 package com.example.platformservice.noteinfo.command.domain;
 
-import com.example.common.file.Image;
+import com.example.common.file.image.Image;
 import jakarta.persistence.*;
 import lombok.AccessLevel;
 import lombok.Getter;

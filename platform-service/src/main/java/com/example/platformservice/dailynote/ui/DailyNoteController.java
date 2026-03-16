@@ -41,7 +41,7 @@ public class DailyNoteController {
             @RequestBody final CreateDailyNoteRequest request,
             @RequestAttribute(AUTHORIZED_MEMBER_ID) final Long memberId
     ) {
-        Long dailyNoteId = dailyNoteCommandService.createDailyNote(
+        Long dailyNoteId = dailyNoteCommandService.createDailyNoteAtFirst(
                 memberId,
                 request.getTodayTodoList(),
                 request.getTomorrowTodoList(),

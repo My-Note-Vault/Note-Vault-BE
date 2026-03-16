@@ -9,6 +9,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.NoSuchElementException;
+import java.util.Optional;
 
 @RequiredArgsConstructor
 @Service
@@ -16,8 +17,9 @@ public class DailyNoteCommandService {
 
     private final DailyNoteRepository dailyNoteRepository;
 
+    //TODO: 이거 조금 이상한데?? 고쳐야 할 듯?
     @Transactional
-    public Long createDailyNote(
+    public Long createDailyNoteAtFirst(
             final Long memberId,
             final String todayTodoList,
             final String tomorrowTodoList,
@@ -37,9 +39,16 @@ public class DailyNoteCommandService {
         }
 
         DailyNote yesterdayNote = yesterdayDailyNote.getFirst();
-        DailyNote dailyNote = new DailyNote(memberId, yesterdayNote.getTomorrowTodoList(), tomorrowTodoList, memo, isCollapsed);
+        DailyNote dailyNote = new DailyNote(memberId, yesterdayNote.getTomorrowTodo(), tomorrowTodoList, memo, isCollapsed);
         dailyNoteRepository.save(dailyNote);
 
+        return dailyNote.getId();
+    }
+
+    @Transactional
+    public Long createTomorrowDailyNote(final Long memberId, final String todayTodo) {
+        DailyNote dailyNote = new DailyNote(memberId, todayTodo);
+        dailyNoteRepository.save(dailyNote);
         return dailyNote.getId();
     }
 

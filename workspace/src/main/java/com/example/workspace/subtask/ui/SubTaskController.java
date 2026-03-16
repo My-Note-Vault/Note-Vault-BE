@@ -44,9 +44,11 @@ public class SubTaskController {
         Long subTaskId = subTaskCommandService.createSubTask(
                 memberId,
                 request.getTaskId(),
+                request.getStartDateTime(),
+                request.getEndDateTime(),
+                request.getStatus(),
                 request.getTitle(),
-                request.getContent(),
-                request.getStatus()
+                request.getContent()
         );
         return ResponseEntity.ok(subTaskId);
     }
@@ -61,7 +63,9 @@ public class SubTaskController {
                 request.getSubTaskId(),
                 request.getTitle(),
                 request.getContent(),
-                request.getStatus()
+                request.getStatus(),
+                request.getStartDateTime(),
+                request.getEndDateTime()
         );
         return ResponseEntity.noContent().build();
     }

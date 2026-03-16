@@ -1,4 +1,4 @@
-package com.example.common.file;
+package com.example.common.file.image;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.EnumType;

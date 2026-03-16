@@ -1,6 +1,8 @@
 package com.example.platformservice.member.domain;
 
 import com.example.common.Auditable;
+import com.example.platformservice.member.domain.value.DayStartTime;
+import com.example.platformservice.member.domain.value.Note;
 import com.example.platformservice.member.domain.value.Provider;
 import com.example.platformservice.member.domain.value.Role;
 import jakarta.persistence.*;
@@ -36,6 +38,11 @@ public class Member extends Auditable {
     @Column(nullable = false)
     private String providerUserId;
 
+    private DayStartTime dayStartTime;
+
+    @Embedded
+    private Note lastViewedNote;
+
 
     private Member(
             final Role role,
@@ -53,6 +60,7 @@ public class Member extends Auditable {
         this.providerUserId = providerUserId;
         this.email = email;
         this.profileImageKey = profileImageKey;
+        this.dayStartTime = DayStartTime.MIDNIGHT;
     }
 
     public static Member googleSignUp(
@@ -74,5 +82,13 @@ public class Member extends Auditable {
     public void completeProfile(final String nickname, final String profileImageUrl) {
         this.nickname = nickname;
         this.profileImageKey = profileImageUrl;
+    }
+
+    public void setLastViewedNote(final Note lastViewedNote) {
+        this.lastViewedNote = lastViewedNote;
+    }
+
+    public void setDayStartTime(final DayStartTime dayStartTime) {
+        this.dayStartTime = dayStartTime;
     }
 }

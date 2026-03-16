@@ -44,9 +44,11 @@ public class TaskController {
     ) {
         Long taskId = taskCommandService.createTask(
                 memberId,
+                request.getStartDateTime(),
+                request.getEndDateTime(),
+                request.getStatus(),
                 request.getTitle(),
-                request.getContent(),
-                request.getStatus()
+                request.getContent()
         );
         return ResponseEntity.ok(taskId);
     }
@@ -61,7 +63,9 @@ public class TaskController {
                 request.getTaskId(),
                 request.getTitle(),
                 request.getContent(),
-                request.getStatus()
+                request.getStatus(),
+                request.getStartDateTime(),
+                request.getEndDateTime()
         );
         return ResponseEntity.noContent().build();
     }

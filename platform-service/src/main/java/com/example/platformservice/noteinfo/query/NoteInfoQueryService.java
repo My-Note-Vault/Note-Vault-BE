@@ -2,9 +2,9 @@ package com.example.platformservice.noteinfo.query;
 
 import com.example.common.api.SnapshotDetailResponse;
 import com.example.common.api.NoteReader;
-import com.example.common.file.Image;
-import com.example.common.file.ImageUtils;
-import com.example.common.file.UploadStatus;
+import com.example.common.file.image.Image;
+import com.example.common.file.image.ImageUtils;
+import com.example.common.file.image.UploadStatus;
 import com.example.platformservice.noteinfo.command.domain.NoteInfo;
 import com.example.platformservice.noteinfo.command.domain.NoteInfoCategory;
 import com.example.platformservice.noteinfo.command.domain.NoteInfoRepository;
