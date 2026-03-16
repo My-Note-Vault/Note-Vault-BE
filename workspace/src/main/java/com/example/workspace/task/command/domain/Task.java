@@ -14,7 +14,7 @@ import java.time.LocalDateTime;
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @Table(
         name = "task",
-        indexes = @Index(columnList = "authorId")
+        indexes = @Index(columnList = "author_id")
 )
 @Entity
 public class Task extends Auditable {

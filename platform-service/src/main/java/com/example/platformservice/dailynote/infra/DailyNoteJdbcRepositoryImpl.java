@@ -2,7 +2,6 @@ package com.example.platformservice.dailynote.infra;
 
 import com.example.platformservice.dailynote.command.domain.DailyNote;
 import com.example.platformservice.dailynote.command.domain.DailyNoteJdbcRepository;
-import com.example.platformservice.dailynote.query.TomorrowTodo;
 import lombok.RequiredArgsConstructor;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.RowMapper;
@@ -25,7 +24,7 @@ public class DailyNoteJdbcRepositoryImpl implements DailyNoteJdbcRepository {
     ) {
         String sql = """
                 SELECT * FROM daily_note
-                WHERE member_id = ?
+                WHERE author_id = ?
                 AND created_time BETWEEN ? AND ?
                 """;
 

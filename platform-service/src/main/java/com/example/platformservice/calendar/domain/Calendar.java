@@ -11,8 +11,7 @@ import java.time.format.DateTimeFormatter;
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @Table(
-        name = "calendar",
-        indexes = @Index(columnList = "memberId")
+        name = "calendar"
 )
 @Entity
 public class Calendar {

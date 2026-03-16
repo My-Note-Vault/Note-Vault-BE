@@ -9,7 +9,7 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @Table(
         name = "unfolded_notes",
-        indexes = @Index(columnList = "authorId")
+        indexes = @Index(columnList = "author_id")
 )
 @Entity
 public class UnfoldedNote {

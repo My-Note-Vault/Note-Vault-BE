@@ -9,7 +9,7 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @Table(
         name = "participant",
-        indexes = @Index(columnList = "workspaceId")
+        indexes = @Index(columnList = "workspace_id")
 )
 @Entity
 public class Participant {
@@ -18,6 +18,7 @@ public class Participant {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    @Column(name = "workspace_id")
     private Long workSpaceId;
     private Long memberId;
 

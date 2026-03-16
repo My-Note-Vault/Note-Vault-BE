@@ -13,7 +13,7 @@ import java.util.Objects;
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @Table(
         name = "trivia",
-        indexes = @Index(columnList = "authorId")
+        indexes = @Index(columnList = "author_id")
 )
 @Entity
 public class Trivia extends Auditable {

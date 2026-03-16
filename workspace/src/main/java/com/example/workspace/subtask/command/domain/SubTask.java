@@ -15,7 +15,7 @@ import java.util.NoSuchElementException;
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @Table(
         name = "subtask",
-        indexes = @Index(columnList = "authorId")
+        indexes = @Index(columnList = "author_id")
 )
 @Entity
 public class SubTask extends Auditable {
