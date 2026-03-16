@@ -17,8 +17,8 @@ public class DailyNoteJdbcRepositoryImpl implements DailyNoteJdbcRepository {
     private JdbcTemplate jdbcTemplate;
 
     @Override
-    public Optional<DailyNote> findByMemberIdAndBetweenDates(
-            final Long memberId,
+    public Optional<DailyNote> findByAuthorIdAndBetweenDates(
+            final Long authorId,
             final LocalDateTime startDateTime,
             final LocalDateTime endDateTime
     ) {
@@ -36,7 +36,7 @@ public class DailyNoteJdbcRepositoryImpl implements DailyNoteJdbcRepository {
                 rs.getBoolean("isCollapsed")
         );
 
-        DailyNote dailyNote = jdbcTemplate.queryForObject(sql, rowMapper, memberId, startDateTime, endDateTime);
+        DailyNote dailyNote = jdbcTemplate.queryForObject(sql, rowMapper, authorId, startDateTime, endDateTime);
         if (dailyNote == null)
             return Optional.empty();
 

@@ -9,7 +9,6 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.NoSuchElementException;
-import java.util.Optional;
 
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
@@ -39,7 +38,7 @@ public class DailyNoteQueryService {
 
     public TomorrowTodo findTomorrowTodo(final Long authorId) {
         LocalDateTime now = LocalDateTime.now();
-        DailyNote dailyNote = dailyNoteRepository.findByMemberIdAndBetweenDates(authorId, now.minusDays(1), now)
+        DailyNote dailyNote = dailyNoteRepository.findByAuthorIdAndBetweenDates(authorId, now.minusDays(1), now)
                 .orElseThrow(() -> new NoSuchElementException(CANNOT_FIND_DAILY_NOTE));
 
         return new TomorrowTodo(dailyNote.getAuthorId(), dailyNote.getTomorrowTodo());
