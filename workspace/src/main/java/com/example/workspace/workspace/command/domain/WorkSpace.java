@@ -13,7 +13,7 @@ import java.util.Objects;
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @Table(
         name = "workspace",
-        indexes = @Index(columnList = "authorId")
+        indexes = @Index(columnList = "creator_id")
 )
 @Entity
 public class WorkSpace extends Auditable {
