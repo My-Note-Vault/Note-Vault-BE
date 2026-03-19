@@ -1,7 +1,7 @@
 package com.example.platformservice.dailynote.command.application;
 
 import com.example.platformservice.dailynote.command.domain.DailyNote;
-import com.example.platformservice.dailynote.command.domain.DailyNoteRepository;
+import com.example.platformservice.dailynote.infra.DailyNoteRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -9,7 +9,6 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.NoSuchElementException;
-import java.util.Optional;
 
 @RequiredArgsConstructor
 @Service
