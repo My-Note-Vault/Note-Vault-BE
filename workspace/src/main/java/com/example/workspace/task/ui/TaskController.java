@@ -31,7 +31,7 @@ public class TaskController {
         return ResponseEntity.ok(task);
     }
 
-    @GetMapping
+    @GetMapping("/all")
     public ResponseEntity<List<Task>> findAllTasks(@RequestParam final Long authorId) {
         List<Task> allTasks = taskQueryService.findAllTasksByAuthorId(authorId);
         return ResponseEntity.ok(allTasks);
