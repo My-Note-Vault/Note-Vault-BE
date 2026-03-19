@@ -38,9 +38,8 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-
           IMAGE=${{ secrets.DOCKERHUB_USERNAME }}/note-vault
-          TAG=${GITHUB_SHA}
+          TAG=${{ github.sha }}
 
           docker build --no-cache -t $IMAGE:$TAG -t $IMAGE:latest .
           docker push $IMAGE:$TAG
@@ -57,6 +56,6 @@ jobs:
             set -euo pipefail
             export DOCKERHUB_USERNAME="${{ secrets.DOCKERHUB_USERNAME }}"
             export IMAGE_NAME="note-vault"
-            /home/ec2-user/deploy/was-deploy.sh "${GITHUB_SHA}" blue
+            /home/ec2-user/deploy/was-deploy.sh "${{ github.sha }}" blue
       
       
