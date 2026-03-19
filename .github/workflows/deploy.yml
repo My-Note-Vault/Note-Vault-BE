@@ -18,14 +18,12 @@ jobs:
           distribution: temurin
           java-version: "21"
 
-
       - name: Build (bootJar)
         shell: bash
         run: |
           set -euo pipefail
-          chmod +x gradlew
+          chmod +x ./gradlew
           ./gradlew clean bootJar
-
 
       - name: Docker Login
         uses: docker/login-action@v3
@@ -33,18 +31,16 @@ jobs:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
-
       - name: Build & Push Docker Image
         shell: bash
         run: |
           set -euo pipefail
-          IMAGE=${{ secrets.DOCKERHUB_USERNAME }}/note-vault
-          TAG=${{ github.sha }}
+          IMAGE="${{ secrets.DOCKERHUB_USERNAME }}/note-vault"
+          TAG="${{ github.sha }}"
 
-          docker build --no-cache -t $IMAGE:$TAG -t $IMAGE:latest .
-          docker push $IMAGE:$TAG
-          docker push $IMAGE:latest
-
+          docker build --no-cache -t "${IMAGE}:${TAG}" -t "${IMAGE}:latest" .
+          docker push "${IMAGE}:${TAG}"
+          docker push "${IMAGE}:latest"
 
       - name: Deploy via Web EC2
         uses: appleboy/ssh-action@v1
@@ -54,8 +50,24 @@ jobs:
           key: ${{ secrets.WEB_SSH_KEY }}
           script: |
             set -euo pipefail
+
+            echo "== whoami =="
+            whoami
+
+            echo "== hostname =="
+            hostname
+
+            echo "== pwd =="
+            pwd
+
+            echo "== deploy dir =="
+            ls -al /home/ec2-user/deploy
+
+            echo "== target script =="
+            ls -l /home/ec2-user/deploy/was-deploy.sh
+
             export DOCKERHUB_USERNAME="${{ secrets.DOCKERHUB_USERNAME }}"
             export IMAGE_NAME="note-vault"
-            /home/ec2-user/deploy/was-deploy.sh "${{ github.sha }}" blue
-      
-      
+
+            chmod +x /home/ec2-user/deploy/was-deploy.sh
+            bash /home/ec2-user/deploy/was-deploy.sh "${{ github.sha }}" blue
