@@ -1,7 +1,7 @@
 package com.example.platformservice.dailynote.query;
 
 import com.example.platformservice.dailynote.command.domain.DailyNote;
-import com.example.platformservice.dailynote.infra.DailyNoteRepository;
+import com.example.platformservice.dailynote.command.domain.DailyNoteRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;

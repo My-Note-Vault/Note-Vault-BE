@@ -1,6 +1,5 @@
-package com.example.platformservice.dailynote.infra;
+package com.example.platformservice.dailynote.command.domain;
 
-import com.example.platformservice.dailynote.command.domain.DailyNote;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 import java.time.LocalDateTime;
