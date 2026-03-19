@@ -1,7 +1,8 @@
 package com.example.platformservice.dailynote.query;
 
 import com.example.platformservice.dailynote.command.domain.DailyNote;
-import com.example.platformservice.dailynote.infra.DailyNoteRepository;
+import com.example.platformservice.dailynote.command.domain.DailyNoteJdbcRepository;
+import com.example.platformservice.dailynote.command.domain.DailyNoteRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -18,6 +19,7 @@ public class DailyNoteQueryService {
     private static final String CANNOT_FIND_DAILY_NOTE = "DailyNote 를 찾을 수 없습니다";
 
     private final DailyNoteRepository dailyNoteRepository;
+    private final DailyNoteJdbcRepository dailyNoteJdbcRepository;
 
     public DailyNote findDailyNoteById(
             final Long authorId,
@@ -38,7 +40,7 @@ public class DailyNoteQueryService {
 
     public TomorrowTodo findTomorrowTodo(final Long authorId) {
         LocalDateTime now = LocalDateTime.now();
-        DailyNote dailyNote = dailyNoteRepository.findByAuthorIdAndBetweenDates(authorId, now.minusDays(1), now)
+        DailyNote dailyNote = dailyNoteJdbcRepository.findByAuthorIdAndBetweenDates(authorId, now.minusDays(1), now)
                 .orElseThrow(() -> new NoSuchElementException(CANNOT_FIND_DAILY_NOTE));
 
         return new TomorrowTodo(dailyNote.getAuthorId(), dailyNote.getTomorrowTodo());

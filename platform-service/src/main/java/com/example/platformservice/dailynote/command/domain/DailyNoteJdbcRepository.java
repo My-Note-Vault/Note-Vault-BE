@@ -1,6 +1,4 @@
-package com.example.platformservice.dailynote.infra;
-
-import com.example.platformservice.dailynote.command.domain.DailyNote;
+package com.example.platformservice.dailynote.command.domain;
 
 import java.time.LocalDateTime;
 import java.util.Optional;

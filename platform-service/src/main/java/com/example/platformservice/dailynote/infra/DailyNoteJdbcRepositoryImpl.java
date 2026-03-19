@@ -1,6 +1,7 @@
 package com.example.platformservice.dailynote.infra;
 
 import com.example.platformservice.dailynote.command.domain.DailyNote;
+import com.example.platformservice.dailynote.command.domain.DailyNoteJdbcRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.RowMapper;
