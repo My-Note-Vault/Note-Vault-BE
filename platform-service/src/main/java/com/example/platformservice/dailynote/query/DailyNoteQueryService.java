@@ -40,7 +40,7 @@ public class DailyNoteQueryService {
 
     public TomorrowTodo findTomorrowTodo(final Long authorId) {
         LocalDateTime now = LocalDateTime.now();
-        DailyNote dailyNote = dailyNoteJdbcRepository.findByAuthorIdAndBetweenDates(authorId, now.minusDays(1), now)
+        DailyNote dailyNote = dailyNoteJdbcRepository.findByAuthorIdAndCreatedAtBetween(authorId, now.minusDays(1), now)
                 .orElseThrow(() -> new NoSuchElementException(CANNOT_FIND_DAILY_NOTE));
 
         return new TomorrowTodo(dailyNote.getAuthorId(), dailyNote.getTomorrowTodo());

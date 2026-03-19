@@ -5,8 +5,7 @@ import java.util.Optional;
 
 public interface DailyNoteJdbcRepository {
 
-
-    Optional<DailyNote> findByAuthorIdAndBetweenDates(
+    Optional<DailyNote> findByAuthorIdAndCreatedAtBetween(
             Long authorId,
             LocalDateTime startDateTime,
             LocalDateTime endDateTime

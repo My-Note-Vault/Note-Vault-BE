@@ -17,7 +17,7 @@ public class DailyNoteJdbcRepositoryImpl implements DailyNoteJdbcRepository {
     private final JdbcTemplate jdbcTemplate;
 
     @Override
-    public Optional<DailyNote> findByAuthorIdAndBetweenDates(
+    public Optional<DailyNote> findByAuthorIdAndCreatedAtBetween(
             final Long authorId,
             final LocalDateTime startDateTime,
             final LocalDateTime endDateTime
