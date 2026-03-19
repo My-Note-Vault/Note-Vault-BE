@@ -11,7 +11,7 @@ import java.util.Optional;
 
 @RequiredArgsConstructor
 @Repository
-public class DailyNoteJdbcRepositoryImpl implements DailyNoteJdbcRepository {
+public class DailyNoteRepositoryImpl implements DailyNoteJdbcRepository {
 
     private JdbcTemplate jdbcTemplate;
 
