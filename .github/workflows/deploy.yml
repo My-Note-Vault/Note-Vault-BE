@@ -50,24 +50,6 @@ jobs:
           key: ${{ secrets.WEB_SSH_KEY }}
           script: |
             set -euo pipefail
-
-            echo "== whoami =="
-            whoami
-
-            echo "== hostname =="
-            hostname
-
-            echo "== pwd =="
-            pwd
-
-            echo "== deploy dir =="
-            ls -al /home/ec2-user/deploy
-
-            echo "== target script =="
-            ls -l /home/ec2-user/deploy/was-deploy.sh
-
             export DOCKERHUB_USERNAME="${{ secrets.DOCKERHUB_USERNAME }}"
             export IMAGE_NAME="note-vault"
-
-            chmod +x /home/ec2-user/deploy/was-deploy.sh
-            bash /home/ec2-user/deploy/was-deploy.sh "${{ github.sha }}" blue
+            bash /home/ec2-user/deploy/deploy-was.sh "${{ github.sha }}" blue
