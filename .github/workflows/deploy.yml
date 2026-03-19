@@ -40,10 +40,11 @@ jobs:
           set -euo pipefail
 
           IMAGE=${{ secrets.DOCKERHUB_USERNAME }}/note-vault
-          TAG=latest
+          TAG=${GITHUB_SHA}
 
-          docker build --no-cache -t $IMAGE:$TAG .
+          docker build --no-cache -t $IMAGE:$TAG -t $IMAGE:latest .
           docker push $IMAGE:$TAG
+          docker push $IMAGE:latest
 
 
       - name: Deploy via Web EC2
@@ -53,7 +54,9 @@ jobs:
           username: ec2-user
           key: ${{ secrets.WEB_SSH_KEY }}
           script: |
-            set -e
-            /home/ec2-user/deploy/deploy-was.sh
+            set -euo pipefail
+            export DOCKERHUB_USERNAME="${{ secrets.DOCKERHUB_USERNAME }}"
+            export IMAGE_NAME="note-vault"
+            /home/ec2-user/deploy/was-deploy.sh "${GITHUB_SHA}" blue
       
       
