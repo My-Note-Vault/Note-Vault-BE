@@ -7,14 +7,12 @@ import com.example.common.jwt.JwtService;
 import jakarta.servlet.*;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
-import org.springframework.stereotype.Component;
 import org.springframework.util.AntPathMatcher;
 
 import java.io.IOException;
 import java.util.List;
 
 
-@Component
 public class TokenAuthenticationFilter implements Filter {
 
     private final JwtService jwtService;
@@ -24,7 +22,8 @@ public class TokenAuthenticationFilter implements Filter {
             new WhiteListRule("/api/v1/login/**", "*"),
             new WhiteListRule("/api/v1/signup/**", "*"),
             new WhiteListRule("/api/v1/oauth/**", "*"),
-            new WhiteListRule("/api/v1/note-info", "GET")
+            new WhiteListRule("/api/v1/note-info", "GET"),
+            new WhiteListRule("/actuator/health/**", "*")
     );
 
     public TokenAuthenticationFilter(JwtService jwtService) {
