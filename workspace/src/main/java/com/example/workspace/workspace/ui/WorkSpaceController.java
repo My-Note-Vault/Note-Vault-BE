@@ -15,7 +15,7 @@ import java.util.List;
 import static com.example.common.CommonConstant.AUTHORIZED_MEMBER_ID;
 
 @RequiredArgsConstructor
-@RequestMapping("/api/v1/workspace")
+@RequestMapping("/api/v1/workspaces")
 @RestController
 public class WorkSpaceController {
 

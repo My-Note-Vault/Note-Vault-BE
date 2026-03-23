@@ -15,7 +15,7 @@ import java.util.List;
 import static com.example.common.CommonConstant.AUTHORIZED_MEMBER_ID;
 
 @RequiredArgsConstructor
-@RequestMapping("/api/v1/task")
+@RequestMapping("/api/v1/tasks")
 @RestController
 public class TaskController {
 
