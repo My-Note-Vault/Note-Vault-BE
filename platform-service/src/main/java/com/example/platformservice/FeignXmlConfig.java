@@ -9,7 +9,7 @@ import org.springframework.context.annotation.Configuration;
 import java.io.IOException;
 import java.lang.reflect.Type;
 
-@Configuration
+//@Configuration
 public class FeignXmlConfig {
 
     @Bean
