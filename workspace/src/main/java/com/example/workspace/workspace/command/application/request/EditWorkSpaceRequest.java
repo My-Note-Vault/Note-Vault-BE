@@ -10,7 +10,7 @@ public class EditWorkSpaceRequest {
 
     @NotBlank
     private final Long workSpaceId;
-    @NotBlank
+
     private final Long parentId;
     @NotBlank
     private final String name;
