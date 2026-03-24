@@ -23,7 +23,8 @@ public class TokenAuthenticationFilter implements Filter {
             new WhiteListRule("/api/v1/signup/**", "*"),
             new WhiteListRule("/api/v1/oauth/**", "*"),
             new WhiteListRule("/api/v1/note-info", "GET"),
-            new WhiteListRule("/actuator/health/**", "*")
+            new WhiteListRule("/actuator/health/**", "*"),
+            new WhiteListRule("/api/v1/**", "OPTIONS")
     );
 
     public TokenAuthenticationFilter(JwtService jwtService) {
