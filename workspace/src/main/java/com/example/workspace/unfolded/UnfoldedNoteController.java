@@ -22,6 +22,12 @@ public class UnfoldedNoteController {
         return ResponseEntity.ok(allUnfoldedNoteIds);
     }
 
+    @GetMapping("/note-info")
+    public ResponseEntity<List<NoteInfoResponse>> findAllNotesInfo(@RequestAttribute(AUTHORIZED_MEMBER_ID) final Long memberId) {
+        List<NoteInfoResponse> allNotesInfo = unfoldedNoteService.findAllNotesInfo(memberId);
+        return ResponseEntity.ok(allNotesInfo);
+    }
+
     @PostMapping
     public ResponseEntity<Void> updateSidebar(
             @RequestBody final List<UnfoldedNoteId> request,

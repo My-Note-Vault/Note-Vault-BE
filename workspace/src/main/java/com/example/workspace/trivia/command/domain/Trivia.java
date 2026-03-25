@@ -22,8 +22,8 @@ public class Trivia extends Auditable {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(nullable = false)
-    private Long parentSubTaskId;
+    @Column(name = "subtask_id", nullable = false)
+    private Long subTaskId;
 
     @Column(nullable = false, unique = true)
     private Long authorId;
@@ -38,13 +38,13 @@ public class Trivia extends Auditable {
 
     public Trivia(
             final Long authorId,
-            final Long parentSubTaskId,
+            final Long subTaskId,
             final String title,
             final String content,
             final Boolean isPublic
     ) {
         this.authorId = authorId;
-        this.parentSubTaskId = parentSubTaskId;
+        this.subTaskId = subTaskId;
         this.title = title;
         this.content = content;
 
@@ -54,7 +54,7 @@ public class Trivia extends Auditable {
 
     public void edit(
             final Long authorId,
-            final Long parentTaskId,
+            final Long subTaskId,
             final String title,
             final String content,
             final Boolean isPublic
@@ -62,7 +62,7 @@ public class Trivia extends Auditable {
         if (!this.authorId.equals(authorId)) {
             throw new NoSuchElementException("자신의 노트가 아닙니다!");
         }
-        this.parentSubTaskId = parentTaskId == null ? this.parentSubTaskId : parentTaskId;
+        this.subTaskId = subTaskId == null ? this.subTaskId : subTaskId;
         this.title = title == null ? this.title : title;
         this.content = content == null ? this.content : content;
         this.isPublic = isPublic == null ? this.isPublic : isPublic;

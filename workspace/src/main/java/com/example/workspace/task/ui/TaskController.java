@@ -43,6 +43,7 @@ public class TaskController {
             @RequestAttribute(AUTHORIZED_MEMBER_ID) final Long memberId
     ) {
         Long taskId = taskCommandService.createTask(
+                request.getWorkSpaceId(),
                 memberId,
                 request.getStartDateTime(),
                 request.getEndDateTime(),

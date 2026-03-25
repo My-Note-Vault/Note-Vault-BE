@@ -11,6 +11,8 @@ import java.time.LocalDateTime;
 @RequiredArgsConstructor
 public class CreateTaskRequest {
 
+    private final Long workSpaceId;
+
     private final LocalDateTime startDateTime;
     private final LocalDateTime endDateTime;
     private final Status status;

@@ -25,6 +25,12 @@ public class UnfoldedNoteService {
                 .toList();
     }
 
+    // 각 Repository 에서 따로 주입받는 것이 더 나을 것 같다
+    @Transactional(readOnly = true)
+    public List<NoteInfoResponse> findAllNotesInfo(final Long authorId) {
+        return unfoldedNoteRepository.findAllNotesInfo(authorId);
+    }
+
     @Transactional
     public void replaceAll(final List<UnfoldedNoteId> unfoldedNoteIds, final Long authorId) {
         unfoldedNoteRepository.deleteAllByAuthorId(authorId);

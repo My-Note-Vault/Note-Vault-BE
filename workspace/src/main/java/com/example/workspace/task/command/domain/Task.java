@@ -23,6 +23,9 @@ public class Task extends Auditable {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    @Column(name = "workspace_id", nullable = false)
+    private Long workSpaceId;
+
     @Column(nullable = false, unique = true)
     private Long authorId;
 
@@ -36,25 +39,28 @@ public class Task extends Auditable {
     private String content;
 
     public Task(
+            final Long workSpaceId,
             final Long authorId,
             final String title,
             final String content,
             final Status status
     ) {
-        this(authorId, null, null, status, title, content);
+        this(workSpaceId, authorId, null, null, status, title, content);
     }
 
     public Task(
+            final Long workSpaceId,
             final Long authorId,
             final LocalDateTime startDateTime,
             final Status status,
             final String title,
             final String content
     ) {
-        this(authorId, startDateTime, null, status, title, content);
+        this(workSpaceId, authorId, startDateTime, null, status, title, content);
     }
 
     public Task(
+            final Long workSpaceId,
             final Long authorId,
             final LocalDateTime startDateTime,
             final LocalDateTime endDateTime,
@@ -62,6 +68,7 @@ public class Task extends Auditable {
             final String title,
             final String content
     ) {
+        this.workSpaceId = workSpaceId;
         this.authorId = authorId;
         this.schedule = new Schedule(status, startDateTime, endDateTime);
         this.title = title;

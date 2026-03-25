@@ -20,6 +20,7 @@ public class TaskCommandService {
 
     @Transactional
     public Long createTask(
+            final Long workSpaceId,
             final Long memberId,
             final LocalDateTime startDateTime,
             final LocalDateTime endDateTime,
@@ -27,7 +28,7 @@ public class TaskCommandService {
             final String title,
             final String content
     ) {
-        Task task = new Task(memberId, startDateTime, endDateTime, status, title, content);
+        Task task = new Task(workSpaceId, memberId, startDateTime, endDateTime, status, title, content);
         taskRepository.save(task);
 
         return task.getId();
