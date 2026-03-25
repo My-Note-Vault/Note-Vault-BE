@@ -1,9 +1,6 @@
 package com.example.workspace.unfolded;
 
-import com.example.workspace.unfolded.domain.NoteType;
-import com.example.workspace.unfolded.domain.UnfoldedNote;
-import com.example.workspace.unfolded.domain.UnfoldedNoteId;
-import com.example.workspace.unfolded.domain.UnfoldedNoteRepository;
+import com.example.workspace.unfolded.domain.*;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -15,6 +12,7 @@ import java.util.List;
 public class UnfoldedNoteService {
 
     private final UnfoldedNoteRepository unfoldedNoteRepository;
+    private final UnfoldedNoteJdbcRepository unfoldedNoteJdbcRepository;
 
     @Transactional(readOnly = true)
     public List<UnfoldedNoteId> findAllUnfoldedNotes(final Long authorId) {
@@ -28,7 +26,7 @@ public class UnfoldedNoteService {
     // 각 Repository 에서 따로 주입받는 것이 더 나을 것 같다
     @Transactional(readOnly = true)
     public List<NoteInfoResponse> findAllNotesInfo(final Long authorId) {
-        return unfoldedNoteRepository.findAllNotesInfo(authorId);
+        return unfoldedNoteJdbcRepository.findAllNotesInfo(authorId);
     }
 
     @Transactional
