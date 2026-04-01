@@ -1,5 +1,6 @@
 package com.example.platformservice.dailynote.ui;
 
+import com.example.common.AuthMemberId;
 import com.example.platformservice.dailynote.command.application.DailyNoteCommandService;
 import com.example.platformservice.dailynote.command.application.request.CreateDailyNoteRequest;
 import com.example.platformservice.dailynote.command.application.request.EditDailyNoteRequest;
@@ -11,10 +12,10 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
-import static com.example.common.CommonConstant.AUTHORIZED_MEMBER_ID;
+import static com.example.platformservice.Const.DAILY_NOTES_BASIC_PATH;
 
 @RequiredArgsConstructor
-@RequestMapping("/api/v1/daily-notes")
+@RequestMapping(DAILY_NOTES_BASIC_PATH)
 @RestController
 public class DailyNoteController {
 
@@ -39,7 +40,7 @@ public class DailyNoteController {
     @PostMapping
     public ResponseEntity<Long> createDailyNote(
             @RequestBody final CreateDailyNoteRequest request,
-            @RequestAttribute(AUTHORIZED_MEMBER_ID) final Long memberId
+            @AuthMemberId final Long memberId
     ) {
         Long dailyNoteId = dailyNoteCommandService.createDailyNoteAtFirst(
                 memberId,
@@ -54,7 +55,7 @@ public class DailyNoteController {
     @PatchMapping
     public ResponseEntity<Void> editDailyNote(
             @RequestBody final EditDailyNoteRequest request,
-            @RequestAttribute(AUTHORIZED_MEMBER_ID) final Long memberId
+            @AuthMemberId final Long memberId
     ) {
         dailyNoteCommandService.editDailyNote(
                 memberId,
@@ -70,11 +71,9 @@ public class DailyNoteController {
     @DeleteMapping("/{dailyNoteId}")
     public ResponseEntity<Void> deleteDailyNote(
             @PathVariable final Long dailyNoteId,
-            @RequestAttribute(AUTHORIZED_MEMBER_ID) final Long memberId
+            @AuthMemberId final Long memberId
     ) {
         dailyNoteCommandService.deleteDailyNote(memberId, dailyNoteId);
         return ResponseEntity.noContent().build();
     }
-
-
 }

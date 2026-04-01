@@ -1,5 +1,6 @@
 package com.example.workspace.task.ui;
 
+import com.example.common.AuthMemberId;
 import com.example.workspace.task.command.application.TaskCommandService;
 import com.example.workspace.task.command.application.request.CreateTaskRequest;
 import com.example.workspace.task.command.application.request.EditTaskRequest;
@@ -12,7 +13,6 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
-import static com.example.common.CommonConstant.AUTHORIZED_MEMBER_ID;
 
 @RequiredArgsConstructor
 @RequestMapping("/api/v1/tasks")
@@ -40,7 +40,7 @@ public class TaskController {
     @PostMapping
     public ResponseEntity<Long> createTask(
             @RequestBody final CreateTaskRequest request,
-            @RequestAttribute(AUTHORIZED_MEMBER_ID) final Long memberId
+            @AuthMemberId final Long memberId
     ) {
         Long taskId = taskCommandService.createTask(
                 request.getWorkSpaceId(),
@@ -57,7 +57,7 @@ public class TaskController {
     @PatchMapping
     public ResponseEntity<Void> editTask(
             @RequestBody final EditTaskRequest request,
-            @RequestAttribute(AUTHORIZED_MEMBER_ID) final Long memberId
+            @AuthMemberId final Long memberId
     ) {
         taskCommandService.editTask(
                 memberId,
@@ -74,7 +74,7 @@ public class TaskController {
     @PatchMapping("/status")
     public ResponseEntity<Void> updateStatus(
             @RequestBody UpdateTaskStatusRequest request,
-            @RequestAttribute(AUTHORIZED_MEMBER_ID) final Long memberId
+            @AuthMemberId final Long memberId
     ) {
         taskCommandService.updateStatus(
                 memberId,
@@ -87,7 +87,7 @@ public class TaskController {
     @DeleteMapping("/{taskId}")
     public ResponseEntity<Void> deleteTask(
             @PathVariable final Long taskId,
-            @RequestAttribute(AUTHORIZED_MEMBER_ID) final Long memberId
+            @AuthMemberId final Long memberId
     ) {
         taskCommandService.deleteTask(memberId, taskId);
         return ResponseEntity.noContent().build();

@@ -1,5 +1,6 @@
 package com.example.workspace.trivia.ui;
 
+import com.example.common.AuthMemberId;
 import com.example.workspace.trivia.command.application.TriviaCommandService;
 import com.example.workspace.trivia.command.application.request.CreateTriviaRequest;
 import com.example.workspace.trivia.command.application.request.EditTriviaRequest;
@@ -11,7 +12,6 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
-import static com.example.common.CommonConstant.AUTHORIZED_MEMBER_ID;
 
 @RequiredArgsConstructor
 @RequestMapping("/api/v1/trivia")
@@ -39,7 +39,7 @@ public class TriviaController {
     @PostMapping
     public ResponseEntity<Long> createTrivia(
             @RequestBody final CreateTriviaRequest request,
-            @RequestAttribute(AUTHORIZED_MEMBER_ID) final Long memberId
+            @AuthMemberId final Long memberId
     ) {
         Long subTaskId = triviaCommandService.createTrivia(
                 memberId,
@@ -54,7 +54,7 @@ public class TriviaController {
     @PatchMapping
     public ResponseEntity<Void> editTrivia(
             @RequestBody final EditTriviaRequest request,
-            @RequestAttribute(AUTHORIZED_MEMBER_ID) final Long memberId
+            @AuthMemberId final Long memberId
     ) {
         triviaCommandService.editTrivia(
                 memberId,
@@ -70,7 +70,7 @@ public class TriviaController {
     @DeleteMapping("/{triviaId}")
     public ResponseEntity<Void> deleteTrivia(
             @PathVariable final Long triviaId,
-            @RequestAttribute(AUTHORIZED_MEMBER_ID) final Long memberId
+            @AuthMemberId final Long memberId
     ) {
         triviaCommandService.deleteTrivia(memberId, triviaId);
         return ResponseEntity.noContent().build();

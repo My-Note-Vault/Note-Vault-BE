@@ -1,5 +1,6 @@
 package com.example.workspace.subtask.ui;
 
+import com.example.common.AuthMemberId;
 import com.example.workspace.subtask.command.application.SubTaskCommandService;
 import com.example.workspace.subtask.command.application.request.CreateSubTaskRequest;
 import com.example.workspace.subtask.command.application.request.EditSubTaskRequest;
@@ -11,7 +12,6 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
-import static com.example.common.CommonConstant.AUTHORIZED_MEMBER_ID;
 
 @RequiredArgsConstructor
 @RequestMapping("/api/v1/subTasks")
@@ -39,7 +39,7 @@ public class SubTaskController {
     @PostMapping
     public ResponseEntity<Long> createSubTask(
             @RequestBody final CreateSubTaskRequest request,
-            @RequestAttribute(AUTHORIZED_MEMBER_ID) final Long memberId
+            @AuthMemberId final Long memberId
     ) {
         Long subTaskId = subTaskCommandService.createSubTask(
                 memberId,
@@ -56,7 +56,7 @@ public class SubTaskController {
     @PatchMapping
     public ResponseEntity<Void> editSubTask(
             @RequestBody final EditSubTaskRequest request,
-            @RequestAttribute(AUTHORIZED_MEMBER_ID) final Long memberId
+            @AuthMemberId final Long memberId
     ) {
         subTaskCommandService.editSubTask(
                 memberId,
@@ -73,7 +73,7 @@ public class SubTaskController {
     @DeleteMapping("/{subTaskId}")
     public ResponseEntity<Void> deleteSubTask(
             @PathVariable final Long subTaskId,
-            @RequestAttribute(AUTHORIZED_MEMBER_ID) final Long memberId
+            @AuthMemberId final Long memberId
     ) {
         subTaskCommandService.deleteSubTask(memberId, subTaskId);
         return ResponseEntity.noContent().build();

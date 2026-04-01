@@ -1,5 +1,6 @@
 package com.example.workspace.unfolded;
 
+import com.example.common.AuthMemberId;
 import com.example.workspace.unfolded.domain.UnfoldedNoteId;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -7,7 +8,6 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
-import static com.example.common.CommonConstant.AUTHORIZED_MEMBER_ID;
 
 @RequiredArgsConstructor
 @RequestMapping("/api/v1/unfolded-notes")
@@ -17,13 +17,13 @@ public class UnfoldedNoteController {
     private final UnfoldedNoteService unfoldedNoteService;
 
     @GetMapping
-    public ResponseEntity<List<UnfoldedNoteId>> findAll(@RequestAttribute(AUTHORIZED_MEMBER_ID) final Long memberId) {
+    public ResponseEntity<List<UnfoldedNoteId>> findAll(@AuthMemberId final Long memberId) {
         List<UnfoldedNoteId> allUnfoldedNoteIds = unfoldedNoteService.findAllUnfoldedNotes(memberId);
         return ResponseEntity.ok(allUnfoldedNoteIds);
     }
 
     @GetMapping("/note-info")
-    public ResponseEntity<List<NoteInfoResponse>> findAllNotesInfo(@RequestAttribute(AUTHORIZED_MEMBER_ID) final Long memberId) {
+    public ResponseEntity<List<NoteInfoResponse>> findAllNotesInfo(@AuthMemberId final Long memberId) {
         List<NoteInfoResponse> allNotesInfo = unfoldedNoteService.findAllNotesInfo(memberId);
         return ResponseEntity.ok(allNotesInfo);
     }
@@ -31,7 +31,7 @@ public class UnfoldedNoteController {
     @PostMapping
     public ResponseEntity<Void> updateSidebar(
             @RequestBody final List<UnfoldedNoteId> request,
-            @RequestAttribute(AUTHORIZED_MEMBER_ID) final Long memberId
+            @AuthMemberId final Long memberId
     ) {
         unfoldedNoteService.replaceAll(request, memberId);
         return ResponseEntity.noContent().build();

@@ -2,13 +2,14 @@ package com.example.platformservice.member.domain;
 
 import com.example.common.Auditable;
 import com.example.platformservice.member.domain.value.DayStartTime;
-import com.example.platformservice.member.domain.value.Note;
 import com.example.platformservice.member.domain.value.Provider;
 import com.example.platformservice.member.domain.value.Role;
 import jakarta.persistence.*;
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
+
+import static com.example.platformservice.Const.DAILY_NOTES_BASIC_PATH;
 
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
@@ -40,8 +41,7 @@ public class Member extends Auditable {
 
     private DayStartTime dayStartTime;
 
-    @Embedded
-    private Note lastViewedNote;
+    private String lastViewedPath;
 
 
     private Member(
@@ -61,6 +61,7 @@ public class Member extends Auditable {
         this.email = email;
         this.profileImageKey = profileImageKey;
         this.dayStartTime = DayStartTime.MIDNIGHT;
+        this.lastViewedPath = DAILY_NOTES_BASIC_PATH;
     }
 
     public static Member googleSignUp(
@@ -84,8 +85,8 @@ public class Member extends Auditable {
         this.profileImageKey = profileImageUrl;
     }
 
-    public void setLastViewedNote(final Note lastViewedNote) {
-        this.lastViewedNote = lastViewedNote;
+    public void setLastViewedPath(String lastViewedPath) {
+        this.lastViewedPath = lastViewedPath;
     }
 
     public void setDayStartTime(final DayStartTime dayStartTime) {

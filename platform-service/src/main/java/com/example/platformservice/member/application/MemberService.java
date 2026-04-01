@@ -1,19 +1,20 @@
 package com.example.platformservice.member.application;
 
-import com.example.platformservice.member.domain.value.DayStartTime;
 import com.example.platformservice.member.domain.Account;
 import com.example.platformservice.member.domain.Member;
+import com.example.platformservice.member.domain.value.DayStartTime;
 import com.example.platformservice.member.infra.AccountRepository;
 import com.example.platformservice.member.infra.MemberRepository;
 import com.example.platformservice.member.ui.dto.CompleteProfileRequest;
 import com.example.platformservice.member.ui.dto.CreateAccountRequest;
-
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 import java.util.NoSuchElementException;
+
+import static com.example.platformservice.Const.NO_USER_MESSAGE;
 
 @RequiredArgsConstructor
 @Service
@@ -28,7 +29,7 @@ public class MemberService {
             final Long memberId
     ) {
         Member member = memberRepository.findById(memberId)
-                .orElseThrow(() -> new NoSuchElementException("일치하는 User 가 없습니다!"));
+                .orElseThrow(() -> new NoSuchElementException(NO_USER_MESSAGE));
 
         member.completeProfile(request.getNickname(), request.getProfileImageUrl());
     }
@@ -42,8 +43,21 @@ public class MemberService {
                 .toList();
     }
 
+    @Transactional(readOnly = true)
+    public String getLastVisitedPath(final Long memberId) {
+        Member member = memberRepository.findById(memberId)
+                .orElseThrow(() -> new NoSuchElementException(NO_USER_MESSAGE));
 
+        return member.getLastViewedPath();
+    }
 
+    @Transactional
+    public void updateLastVisitedPath(final Long memberId, final String lastVisitedPath) {
+        Member member = memberRepository.findById(memberId)
+                .orElseThrow(() -> new NoSuchElementException(NO_USER_MESSAGE));
+
+        member.setLastViewedPath(lastVisitedPath);
+    }
 
     @Transactional
     public Long addAccountInformation(
