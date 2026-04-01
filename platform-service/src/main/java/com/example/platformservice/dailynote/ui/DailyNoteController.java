@@ -14,7 +14,7 @@ import java.util.List;
 import static com.example.common.CommonConstant.AUTHORIZED_MEMBER_ID;
 
 @RequiredArgsConstructor
-@RequestMapping("/api/v1/daily-note")
+@RequestMapping("/api/v1/daily-notes")
 @RestController
 public class DailyNoteController {
 
