@@ -10,4 +10,5 @@ public interface DailyNoteJdbcRepository {
             LocalDateTime startDateTime,
             LocalDateTime endDateTime
     );
+
 }

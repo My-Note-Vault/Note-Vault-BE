@@ -1,4 +1,4 @@
-package com.example.platformservice.dailynote.query;
+package com.example.platformservice.dailynote.query.response;
 
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;

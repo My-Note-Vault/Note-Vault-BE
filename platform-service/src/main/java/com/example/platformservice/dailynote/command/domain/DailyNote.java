@@ -5,10 +5,7 @@ import jakarta.persistence.*;
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
-import org.springframework.data.jpa.repository.JpaRepository;
 
-import java.time.LocalDateTime;
-import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.Objects;
 
@@ -36,7 +33,11 @@ public class DailyNote extends Auditable {
     private Boolean isCollapsed;
 
 
-    public DailyNote(final Long authorId, final String todayTodo) {
+    public DailyNote(final Long authorId) {
+        this.authorId = authorId;
+    }
+
+    public DailyNote(final Long authorId, String todayTodo) {
         this.authorId = authorId;
         this.todayTodo = todayTodo;
     }

@@ -4,8 +4,8 @@ import com.example.common.AuthMemberId;
 import com.example.platformservice.dailynote.command.application.DailyNoteCommandService;
 import com.example.platformservice.dailynote.command.application.request.CreateDailyNoteRequest;
 import com.example.platformservice.dailynote.command.application.request.EditDailyNoteRequest;
-import com.example.platformservice.dailynote.command.domain.DailyNote;
 import com.example.platformservice.dailynote.query.DailyNoteQueryService;
+import com.example.platformservice.dailynote.query.response.DailyNoteResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -20,20 +20,26 @@ import static com.example.platformservice.Const.DAILY_NOTES_BASIC_PATH;
 public class DailyNoteController {
 
     private final DailyNoteCommandService dailyNoteCommandService;
-    private final DailyNoteQueryService triviaQueryService;
+    private final DailyNoteQueryService dailyNoteQueryService;
+
+    @GetMapping({"/{dailyNoteId}"})
+    public ResponseEntity<DailyNoteResponse> findSpecificDailyNote(
+            @PathVariable("dailyNoteId") final Long dailyNoteId,
+            @AuthMemberId final Long authorId
+    ) {
+        DailyNoteResponse dailyNoteResponse = dailyNoteQueryService.findDailyNoteById(authorId, dailyNoteId);
+        return ResponseEntity.ok(dailyNoteResponse);
+    }
 
     @GetMapping
-    public ResponseEntity<DailyNote> findSpecificDailyNote(
-            @RequestParam final Long authorId,
-            @RequestParam final Long dailyNoteId
-    ) {
-        DailyNote dailyNote = triviaQueryService.findDailyNoteById(authorId, dailyNoteId);
-        return ResponseEntity.ok(dailyNote);
+    public ResponseEntity<DailyNoteResponse> findTodayDailyNote(@AuthMemberId final Long authorId) {
+        DailyNoteResponse todayDailyNoteResponse = dailyNoteQueryService.getTodayDailyNote(authorId);
+        return ResponseEntity.ok(todayDailyNoteResponse);
     }
 
     @GetMapping("/all")
-    public ResponseEntity<List<DailyNote>> findAllDailyNotes(@RequestParam final Long authorId) {
-        List<DailyNote> allDailyNotes = triviaQueryService.findAllDailyNotesByAuthorId(authorId);
+    public ResponseEntity<List<DailyNoteResponse>> findAllDailyNotes(@AuthMemberId final Long authorId) {
+        List<DailyNoteResponse> allDailyNotes = dailyNoteQueryService.findAllDailyNotesByAuthorId(authorId);
         return ResponseEntity.ok(allDailyNotes);
     }
 

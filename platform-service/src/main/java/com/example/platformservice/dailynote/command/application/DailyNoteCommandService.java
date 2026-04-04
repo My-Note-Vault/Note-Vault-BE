@@ -46,7 +46,7 @@ public class DailyNoteCommandService {
 
     @Transactional
     public Long createTomorrowDailyNote(final Long memberId, final String todayTodo) {
-        DailyNote dailyNote = new DailyNote(memberId, todayTodo);
+        DailyNote dailyNote = new DailyNote(memberId);
         dailyNoteRepository.save(dailyNote);
         return dailyNote.getId();
     }
