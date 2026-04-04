@@ -1,5 +1,6 @@
 package com.example.platformservice.member.ui;
 
+import com.example.common.AuthMemberId;
 import com.example.platformservice.member.application.MemberService;
 import com.example.platformservice.member.ui.dto.CompleteProfileRequest;
 import com.example.platformservice.member.ui.dto.CreateAccountRequest;
@@ -16,7 +17,7 @@ public class MemberController {
     private final MemberService memberService;
 
     @GetMapping("/last-visited-path")
-    public ResponseEntity<String> getLastVisitedPath(@RequestHeader("X-Member-Id") final Long memberId) {
+    public ResponseEntity<String> getLastVisitedPath(@AuthMemberId final Long memberId) {
         String lastVisitedPath = memberService.getLastVisitedPath(memberId);
         return ResponseEntity.ok(lastVisitedPath);
     }
@@ -24,7 +25,7 @@ public class MemberController {
     @PostMapping("/last-visited-path")
     public ResponseEntity<Void> updateLastVisitedPath(
             @RequestBody final UpdateLastVisitedPathRequest request,
-            @RequestHeader("X-Member-Id") final Long memberId
+            @AuthMemberId final Long memberId
     ) {
         memberService.updateLastVisitedPath(memberId, request.getLastVisitedPath());
         return ResponseEntity.noContent().build();
@@ -33,7 +34,7 @@ public class MemberController {
     @PostMapping("/profile")
     public ResponseEntity<Void> completeProfile(
             @RequestBody final CompleteProfileRequest request,
-            @RequestHeader("X-Member-Id") final Long memberId
+            @AuthMemberId final Long memberId
     ) {
         memberService.completeProfile(request, memberId);
         return ResponseEntity.noContent().build();
@@ -42,7 +43,7 @@ public class MemberController {
     @PostMapping
     public ResponseEntity<Long> createAccountForSelling(
             @RequestBody final CreateAccountRequest request,
-            @RequestHeader("X-Member-Id") final Long memberId
+            @AuthMemberId final Long memberId
     ) {
         Long accountId = memberService.addAccountInformation(request, memberId);
         return ResponseEntity.ok(accountId);

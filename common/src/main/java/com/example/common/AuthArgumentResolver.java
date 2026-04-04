@@ -3,6 +3,7 @@ package com.example.common;
 import org.springframework.core.MethodParameter;
 import org.springframework.web.bind.support.WebDataBinderFactory;
 import org.springframework.web.context.request.NativeWebRequest;
+import org.springframework.web.context.request.RequestAttributes;
 import org.springframework.web.method.support.HandlerMethodArgumentResolver;
 import org.springframework.web.method.support.ModelAndViewContainer;
 
@@ -16,16 +17,16 @@ public class AuthArgumentResolver implements HandlerMethodArgumentResolver {
 
     @Override
     public Object resolveArgument(MethodParameter parameter, ModelAndViewContainer mavContainer, NativeWebRequest webRequest, WebDataBinderFactory binderFactory) throws Exception {
-        String headerValue = webRequest.getHeader(CommonConstant.AUTHORIZED_MEMBER_ID);
+        Object memberId = webRequest.getAttribute(CommonConstant.AUTHORIZED_MEMBER_ID, RequestAttributes.SCOPE_REQUEST);
 
-        if (headerValue == null) {
+        if (memberId == null) {
             throw new IllegalArgumentException("Member-Id header is missing");
         }
 
         try {
-            return Long.valueOf(headerValue);
+            return memberId;
         } catch (NumberFormatException e) {
-            throw new IllegalArgumentException("Invalid Member-Id header value: " + headerValue);
+            throw new IllegalArgumentException("Invalid Member-Id header value: " + memberId);
         }
     }
 }
