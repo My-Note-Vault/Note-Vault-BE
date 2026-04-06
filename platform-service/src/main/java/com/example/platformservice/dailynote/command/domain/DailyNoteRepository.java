@@ -13,7 +13,7 @@ public interface DailyNoteRepository extends JpaRepository<DailyNote, Long> {
 
     List<DailyNote> findAllByCreatedAt(LocalDateTime createdAt);
 
-    Optional<DailyNote> findFirstByCreatedAtBetween(LocalDateTime createdAtAfter, LocalDateTime createdAtBefore);
+    Optional<DailyNote> findFirstByAuthorIdAndCreatedAtBetween(Long authorId, LocalDateTime createdAtAfter, LocalDateTime createdAtBefore);
 
     @Query("""
 SELECT d

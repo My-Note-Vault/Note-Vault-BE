@@ -63,7 +63,7 @@ public class DailyNoteQueryService {
         LocalDate calculatedDate = calculateDate(criteriaTime, nowLocalTime);
         LocalDateTime logicalNowDateTime = LocalDateTime.of(calculatedDate, criteriaTime);
 
-        DailyNote dailyNote = dailyNoteRepository.findFirstByCreatedAtBetween(logicalNowDateTime, logicalNowDateTime.plusDays(1))
+        DailyNote dailyNote = dailyNoteRepository.findFirstByAuthorIdAndCreatedAtBetween(authorId, logicalNowDateTime, logicalNowDateTime.plusDays(1))
                 .orElseGet(() -> {
                     String needTodo = dailyNoteRepository.findLatestTomorrowTodoWithin3days(authorId, logicalNowDateTime.minusDays(3))
                             .orElse("");
