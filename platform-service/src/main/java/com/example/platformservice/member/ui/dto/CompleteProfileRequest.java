@@ -11,7 +11,7 @@ public class CompleteProfileRequest {
     @NotBlank
     private final String nickname;
     @NotBlank
-    private final String profileImageUrl;
+    private final String profileImageKey;
 
 
     /**

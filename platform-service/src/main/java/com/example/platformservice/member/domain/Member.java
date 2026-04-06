@@ -39,6 +39,7 @@ public class Member extends Auditable {
     @Column(nullable = false)
     private String providerUserId;
 
+    @Column(nullable = false)
     private DayStartTime dayStartTime;
 
     private String lastViewedPath;
@@ -80,9 +81,13 @@ public class Member extends Auditable {
         );
     }
 
-    public void completeProfile(final String nickname, final String profileImageUrl) {
+    public void completeProfile(final String nickname, final String profileImageKey) {
         this.nickname = nickname;
-        this.profileImageKey = profileImageUrl;
+        this.profileImageKey = profileImageKey;
+    }
+
+    public void updateProfileImageKey(final String profileImageKey) {
+        this.profileImageKey = profileImageKey;
     }
 
     public void setLastViewedPath(String lastViewedPath) {
