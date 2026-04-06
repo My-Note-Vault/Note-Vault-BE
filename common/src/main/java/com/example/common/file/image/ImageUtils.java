@@ -1,17 +1,11 @@
 package com.example.common.file.image;
 
+import com.example.common.file.FileUtils;
+import com.example.common.file.UploadFileResponse;
 import lombok.RequiredArgsConstructor;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import software.amazon.awssdk.services.s3.S3Client;
-import software.amazon.awssdk.services.s3.presigner.S3Presigner;
-import software.amazon.awssdk.services.s3.presigner.model.GetObjectPresignRequest;
-import software.amazon.awssdk.services.s3.presigner.model.PresignedGetObjectRequest;
-import software.amazon.awssdk.services.s3.presigner.model.PresignedPutObjectRequest;
-import software.amazon.awssdk.services.s3.presigner.model.PutObjectPresignRequest;
 
-import java.time.Duration;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -25,48 +19,34 @@ public class ImageUtils {
             "image/jpeg", "jpg"
     );
 
-    @Value("${spring.cloud.aws.s3.bucket}")
-    private String bucket;
+    private static final String DEFAULT_IMAGE_CONTENT_TYPE = "image/jpeg";
 
-    private final S3Presigner s3Presigner;
-    private final S3Client s3Client;
-
+    private final FileUtils fileUtils;
 
     public String generatePresignedGetUrl(final String key) {
-        GetObjectPresignRequest objectPresignRequest = GetObjectPresignRequest.builder()
-                .signatureDuration(Duration.ofMinutes(5))
-                .getObjectRequest(getObjectRequest -> getObjectRequest.bucket(bucket).key(key))
-                .build();
-
-        PresignedGetObjectRequest presignedRequest = s3Presigner.presignGetObject(objectPresignRequest);
-        return presignedRequest.url().toString();
+        return fileUtils.generatePresignedGetUrl(key);
     }
 
     public List<String> generatePresignedGetUrl(final List<String> keys) {
-        return keys.stream()
-                .map(this::generatePresignedGetUrl)
-                .toList();
+        return fileUtils.generatePresignedGetUrl(keys);
     }
 
 
     @Transactional
     public UploadImageResponse generatePresignedPutUrl(final Long memberId) {
-        String key = String.format("%s/%s.jpeg", memberId, UUID.randomUUID());
+        return generatePresignedPutUrl(memberId, DEFAULT_IMAGE_CONTENT_TYPE);
+    }
 
-        PutObjectPresignRequest objectPresignRequest = PutObjectPresignRequest.builder()
-                .signatureDuration(Duration.ofMinutes(10))
-                .putObjectRequest(
-                        putRequest -> putRequest
-                                .bucket(bucket)
-                                .key(key)
-                                .contentType("image/jpeg")
-                                .build()
-                )
-                .build();
-        PresignedPutObjectRequest presignedRequest = s3Presigner.presignPutObject(objectPresignRequest);
+    @Transactional
+    public UploadImageResponse generatePresignedPutUrl(final Long memberId, final String contentType) {
+        String extension = MIME_TO_EXT.get(contentType);
+        if (extension == null) {
+            throw new IllegalArgumentException("지원하지 않는 이미지 형식입니다.");
+        }
 
-        String presignedUrl = presignedRequest.url().toString();
-        return new UploadImageResponse(presignedUrl, key);
+        String key = String.format("%s/%s.%s", memberId, UUID.randomUUID(), extension);
+        UploadFileResponse uploadFileResponse = fileUtils.generatePresignedPutUrl(key, contentType);
+        return new UploadImageResponse(uploadFileResponse.getPresignedUrl(), uploadFileResponse.getKey());
     }
 
 
@@ -78,7 +58,7 @@ public class ImageUtils {
     }
 
     public void deleteImage(final String key) {
-        s3Client.deleteObject(deleteRequest -> deleteRequest.bucket(bucket).key(key));
+        fileUtils.deleteFile(key);
         //TODO: image 테이블에서도 삭제를 해줘야한다
     }
 
