@@ -9,8 +9,6 @@ import lombok.RequiredArgsConstructor;
 public class EditDailyNoteRequest {
 
     @NotBlank
-    private final Long dailyNoteId;
-    @NotBlank
     private final String todayTodoList;
     @NotBlank
     private final String tomorrowTodoList;

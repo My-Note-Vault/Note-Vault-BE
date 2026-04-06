@@ -58,14 +58,15 @@ public class DailyNoteController {
         return ResponseEntity.ok(dailyNoteId);
     }
 
-    @PatchMapping
+    @PatchMapping("/{dailyNoteId}")
     public ResponseEntity<Void> editDailyNote(
+            @PathVariable final Long dailyNoteId,
             @RequestBody final EditDailyNoteRequest request,
             @AuthMemberId final Long memberId
     ) {
         dailyNoteCommandService.editDailyNote(
                 memberId,
-                request.getDailyNoteId(),
+                dailyNoteId,
                 request.getTodayTodoList(),
                 request.getTomorrowTodoList(),
                 request.getMemo(),
