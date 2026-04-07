@@ -1,5 +1,6 @@
 package com.example.platformservice.auth.component;
 
+import com.example.common.exception.GlobalErrorCode;
 import com.example.common.exception.UnauthorizedException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.servlet.FilterChain;
@@ -22,24 +23,23 @@ public class JwtExceptionFilter extends OncePerRequestFilter {
         try {
             filterChain.doFilter(request, response);
         } catch (UnauthorizedException e) {
-            setErrorResponse(response, HttpServletResponse.SC_UNAUTHORIZED, "UNAUTHORIZED", e.getMessage());
+            setErrorResponse(response, HttpServletResponse.SC_UNAUTHORIZED, GlobalErrorCode.UNAUTHORIZED_ERROR, e.getMessage());
         } catch (Exception e) {
-            setErrorResponse(response, HttpServletResponse.SC_INTERNAL_SERVER_ERROR, "INTERNAL_SERVER_ERROR", e.getMessage());
+            setErrorResponse(response, HttpServletResponse.SC_INTERNAL_SERVER_ERROR, GlobalErrorCode.INTERNAL_SERVER_ERROR, e.getMessage());
         }
     }
 
-    private void setErrorResponse(HttpServletResponse response, int status, String code, String message) throws IOException {
+    private void setErrorResponse(HttpServletResponse response, int status, GlobalErrorCode code, String message) throws IOException {
         response.setStatus(status);
         response.setContentType(MediaType.APPLICATION_JSON_VALUE);
         response.setCharacterEncoding("UTF-8");
 
         String body = objectMapper.writeValueAsString(
                 Map.of(
-                        "code", code,
+                        "code", code.getLabel(),
                         "message", message
                 )
         );
-
         response.getWriter().write(body);
     }
 }
