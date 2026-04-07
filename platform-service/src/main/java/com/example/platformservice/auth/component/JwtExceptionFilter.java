@@ -24,7 +24,7 @@ public class JwtExceptionFilter extends OncePerRequestFilter {
         } catch (UnauthorizedException e) {
             setErrorResponse(response, HttpServletResponse.SC_UNAUTHORIZED, "UNAUTHORIZED", e.getMessage());
         } catch (Exception e) {
-            setErrorResponse(response, HttpServletResponse.SC_INTERNAL_SERVER_ERROR, "INTERNAL_SERVER_ERROR", "서버 내부 오류입니다");
+            setErrorResponse(response, HttpServletResponse.SC_INTERNAL_SERVER_ERROR, "INTERNAL_SERVER_ERROR", e.getMessage());
         }
     }
 
