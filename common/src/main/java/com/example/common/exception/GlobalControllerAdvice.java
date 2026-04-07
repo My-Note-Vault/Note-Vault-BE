@@ -17,7 +17,7 @@ public class GlobalControllerAdvice {
         log.error("error: {}", ex.getMessage(), ex);
 
         GlobalErrorFormat error = GlobalErrorFormat.of(INVALID_INPUT_ERROR, ex.getMessage());
-        return ResponseEntity.internalServerError()
+        return ResponseEntity.badRequest()
                 .body(error);
     }
 

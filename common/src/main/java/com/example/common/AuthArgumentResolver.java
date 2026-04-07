@@ -1,5 +1,6 @@
 package com.example.common;
 
+import com.example.common.exception.UnauthorizedException;
 import org.springframework.core.MethodParameter;
 import org.springframework.web.bind.support.WebDataBinderFactory;
 import org.springframework.web.context.request.NativeWebRequest;
@@ -20,7 +21,7 @@ public class AuthArgumentResolver implements HandlerMethodArgumentResolver {
         Object memberId = webRequest.getAttribute(CommonConstant.AUTHORIZED_MEMBER_ID, RequestAttributes.SCOPE_REQUEST);
 
         if (memberId == null) {
-            throw new IllegalArgumentException("Member-Id header is missing");
+            throw new UnauthorizedException("인증 정보가 없습니다");
         }
 
         try {
