@@ -10,6 +10,7 @@ import com.example.platformservice.member.infra.MemberRepository;
 import com.example.platformservice.member.ui.dto.CompleteProfileRequest;
 import com.example.platformservice.member.ui.dto.CreateAccountRequest;
 import com.example.platformservice.member.ui.dto.GenerateProfileImageUploadUrlResponse;
+import com.example.platformservice.member.ui.dto.MemberProfileResponse;
 import com.example.platformservice.member.ui.dto.ProfileImageResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -62,6 +63,18 @@ public class MemberService {
                 .orElseThrow(() -> new NoSuchElementException(NO_USER_MESSAGE));
 
         member.setLastViewedPath(lastVisitedPath);
+    }
+
+    @Transactional(readOnly = true)
+    public MemberProfileResponse getProfile(final Long memberId) {
+        Member member = findMember(memberId);
+
+        return new MemberProfileResponse(
+                member.getNickname(),
+                member.getProfileImageKey(),
+                member.getEmail(),
+                member.getDayStartTime()
+        );
     }
 
     @Transactional

@@ -2,13 +2,7 @@ package com.example.platformservice.member.ui;
 
 import com.example.common.AuthMemberId;
 import com.example.platformservice.member.application.MemberService;
-import com.example.platformservice.member.ui.dto.CompleteProfileRequest;
-import com.example.platformservice.member.ui.dto.CreateAccountRequest;
-import com.example.platformservice.member.ui.dto.GenerateProfileImageUploadUrlRequest;
-import com.example.platformservice.member.ui.dto.GenerateProfileImageUploadUrlResponse;
-import com.example.platformservice.member.ui.dto.ProfileImageResponse;
-import com.example.platformservice.member.ui.dto.UpdateProfileImageRequest;
-import com.example.platformservice.member.ui.dto.UpdateLastVisitedPathRequest;
+import com.example.platformservice.member.ui.dto.*;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -34,6 +28,12 @@ public class MemberController {
     ) {
         memberService.updateLastVisitedPath(memberId, request.getLastVisitedPath());
         return ResponseEntity.noContent().build();
+    }
+
+    @GetMapping("/profile")
+    public ResponseEntity<MemberProfileResponse> getProfile(@AuthMemberId final Long memberId) {
+        MemberProfileResponse response = memberService.getProfile(memberId);
+        return ResponseEntity.ok(response);
     }
 
     @PostMapping("/profile")
