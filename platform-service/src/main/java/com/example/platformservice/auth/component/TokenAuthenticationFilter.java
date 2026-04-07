@@ -2,11 +2,10 @@ package com.example.platformservice.auth.component;
 
 
 import com.example.common.CommonConstant;
-import com.example.common.exception.ForbiddenException;
+import com.example.common.exception.UnauthorizedException;
 import com.example.common.jwt.JwtService;
 import jakarta.servlet.*;
 import jakarta.servlet.http.HttpServletRequest;
-import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.util.AntPathMatcher;
 
 import java.io.IOException;
@@ -39,7 +38,6 @@ public class TokenAuthenticationFilter implements Filter {
     ) throws IOException, ServletException {
 
         HttpServletRequest req = (HttpServletRequest) request;
-        HttpServletResponse res = (HttpServletResponse) response;
 
         String path = req.getRequestURI();
         String method = req.getMethod();
@@ -53,16 +51,14 @@ public class TokenAuthenticationFilter implements Filter {
         String header = req.getHeader("Authorization");
         // AccessToken 이 존재하지 않는다면
         if (header == null || !header.startsWith("Bearer ")) {
-            res.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
-            throw new ForbiddenException("access 토큰이 없습니다");
+            throw new UnauthorizedException("access 토큰이 없습니다");
         }
 
         String token = header.substring(7);
 
         // AccessToken 기한이 지났다면
-        if (!jwtService.isValidTokenExpiration(token)) {
-            res.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
-            return;
+        if (jwtService.isInvalidToken(token) || !jwtService.isAccessToken(token)) {
+            throw new UnauthorizedException("유효하지 않은 access 토큰입니다");
         }
 
         // 필요하면 Request Attribute 전달

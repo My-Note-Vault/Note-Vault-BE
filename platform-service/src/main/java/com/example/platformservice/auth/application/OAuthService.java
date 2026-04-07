@@ -1,9 +1,12 @@
 package com.example.platformservice.auth.application;
 
 import com.example.common.jwt.JwtService;
+import com.example.common.exception.UnauthorizedException;
+import com.example.platformservice.auth.component.RefreshTokenStore;
 import com.example.platformservice.auth.component.dto.OAuthUserInfo;
 import com.example.platformservice.auth.feignclient.GoogleTokenClient;
 import com.example.platformservice.auth.feignclient.GoogleUserClient;
+import com.example.platformservice.auth.ui.dto.TokenResponse;
 import com.example.platformservice.member.domain.Member;
 import com.example.platformservice.member.infra.MemberRepository;
 import lombok.RequiredArgsConstructor;
@@ -39,6 +42,7 @@ public class OAuthService {
     private final GoogleUserClient googleUserClient;
     private final MemberRepository memberRepository;
     private final JwtService jwtService;
+    private final RefreshTokenStore refreshTokenStore;
 
     private final Map<String, String> sessionStore = new ConcurrentHashMap<>();
 
@@ -116,10 +120,37 @@ public class OAuthService {
         );
     }
 
-    public String issueJwt(OAuthUserInfo userInfo) {
-        return jwtService.createToken(
-                userInfo.getUserId(),
-                userInfo.getEmail()
-        );
+    public TokenResponse issueTokens(OAuthUserInfo userInfo) {
+        String accessToken = jwtService.createAccessToken(userInfo.getUserId(), userInfo.getEmail());
+        String refreshToken = jwtService.createRefreshToken(userInfo.getUserId(), userInfo.getEmail());
+
+        refreshTokenStore.save(userInfo.getUserId(), refreshToken);
+
+        return new TokenResponse(accessToken, refreshToken);
+    }
+
+    public TokenResponse refreshTokens(final String refreshToken) {
+        if (refreshToken == null || refreshToken.isBlank()) {
+            throw new UnauthorizedException("refresh 토큰이 없습니다");
+        }
+
+        if (jwtService.isInvalidToken(refreshToken) || !jwtService.isRefreshToken(refreshToken)) {
+            throw new UnauthorizedException("유효하지 않은 refresh 토큰입니다");
+        }
+
+        Long memberId = jwtService.getMemberId(refreshToken);
+        if (!refreshTokenStore.matches(memberId, refreshToken)) {
+            throw new UnauthorizedException("저장된 refresh 토큰과 일치하지 않습니다");
+        }
+
+        Member member = memberRepository.findById(memberId)
+                .orElseThrow(() -> new UnauthorizedException("회원 정보를 찾을 수 없습니다"));
+
+        String newAccessToken = jwtService.createAccessToken(member.getId(), member.getEmail());
+        String newRefreshToken = jwtService.createRefreshToken(member.getId(), member.getEmail());
+
+        refreshTokenStore.save(member.getId(), newRefreshToken);
+
+        return new TokenResponse(newAccessToken, newRefreshToken);
     }
 }

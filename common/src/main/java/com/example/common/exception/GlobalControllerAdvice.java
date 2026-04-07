@@ -26,7 +26,7 @@ public class GlobalControllerAdvice {
         log.error("error: {}", ex.getMessage(), ex);
 
         GlobalErrorFormat error = GlobalErrorFormat.of(UNAUTHORIZED_ERROR, ex.getMessage());
-        return ResponseEntity.internalServerError()
+        return ResponseEntity.status(401)
                 .body(error);
     }
 
@@ -35,7 +35,7 @@ public class GlobalControllerAdvice {
         log.error("error: {}", ex.getMessage(), ex);
 
         GlobalErrorFormat error = GlobalErrorFormat.of(FORBIDDEN_ERROR, ex.getMessage());
-        return ResponseEntity.internalServerError()
+        return ResponseEntity.status(403)
                 .body(error);
     }
 
