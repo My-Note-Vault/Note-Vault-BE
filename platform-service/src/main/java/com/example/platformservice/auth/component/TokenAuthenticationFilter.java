@@ -51,6 +51,7 @@ public class TokenAuthenticationFilter implements Filter {
         String header = req.getHeader("Authorization");
         // AccessToken 이 존재하지 않는다면
         if (header == null || !header.startsWith("Bearer ")) {
+
             throw new UnauthorizedException("access 토큰이 없습니다");
         }
 
