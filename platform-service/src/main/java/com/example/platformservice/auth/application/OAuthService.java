@@ -2,7 +2,8 @@ package com.example.platformservice.auth.application;
 
 import com.example.common.jwt.JwtService;
 import com.example.common.exception.UnauthorizedException;
-import com.example.platformservice.auth.component.RefreshTokenStore;
+import com.example.platformservice.auth.component.RefreshToken;
+import com.example.platformservice.auth.component.RefreshTokenRepository;
 import com.example.platformservice.auth.component.dto.OAuthUserInfo;
 import com.example.platformservice.auth.feignclient.GoogleTokenClient;
 import com.example.platformservice.auth.feignclient.GoogleUserClient;
@@ -42,7 +43,7 @@ public class OAuthService {
     private final GoogleUserClient googleUserClient;
     private final MemberRepository memberRepository;
     private final JwtService jwtService;
-    private final RefreshTokenStore refreshTokenStore;
+    private final RefreshTokenRepository refreshTokenRepository;
 
     private final Map<String, String> sessionStore = new ConcurrentHashMap<>();
 
@@ -124,7 +125,7 @@ public class OAuthService {
         String accessToken = jwtService.createAccessToken(userInfo.getUserId(), userInfo.getEmail());
         String refreshToken = jwtService.createRefreshToken(userInfo.getUserId(), userInfo.getEmail());
 
-        refreshTokenStore.save(userInfo.getUserId(), refreshToken);
+        saveRefreshToken(userInfo.getUserId(), refreshToken);
 
         return new TokenResponse(accessToken, refreshToken);
     }
@@ -139,7 +140,10 @@ public class OAuthService {
         }
 
         Long memberId = jwtService.getMemberId(refreshToken);
-        if (!refreshTokenStore.matches(memberId, refreshToken)) {
+        RefreshToken savedRefreshToken = refreshTokenRepository.findByMemberId(memberId)
+                .orElseThrow(() -> new UnauthorizedException("저장된 refresh 토큰이 없습니다"));
+
+        if (!savedRefreshToken.getToken().equals(refreshToken)) {
             throw new UnauthorizedException("저장된 refresh 토큰과 일치하지 않습니다");
         }
 
@@ -149,8 +153,18 @@ public class OAuthService {
         String newAccessToken = jwtService.createAccessToken(member.getId(), member.getEmail());
         String newRefreshToken = jwtService.createRefreshToken(member.getId(), member.getEmail());
 
-        refreshTokenStore.save(member.getId(), newRefreshToken);
+        saveRefreshToken(member.getId(), newRefreshToken);
 
         return new TokenResponse(newAccessToken, newRefreshToken);
+    }
+
+    private void saveRefreshToken(final Long memberId, final String refreshToken) {
+        refreshTokenRepository.findByMemberId(memberId)
+                .ifPresentOrElse(
+                        savedToken -> savedToken.update(refreshToken, jwtService.getExpiration(refreshToken)),
+                        () -> refreshTokenRepository.save(
+                                RefreshToken.create(memberId, refreshToken, jwtService.getExpiration(refreshToken))
+                        )
+                );
     }
 }

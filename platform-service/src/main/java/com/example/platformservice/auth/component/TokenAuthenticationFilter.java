@@ -31,12 +31,7 @@ public class TokenAuthenticationFilter implements Filter {
     }
 
     @Override
-    public void doFilter(
-            ServletRequest request,
-            ServletResponse response,
-            FilterChain chain
-    ) throws IOException, ServletException {
-
+    public void doFilter(ServletRequest request, ServletResponse response, FilterChain chain) throws IOException, ServletException {
         HttpServletRequest req = (HttpServletRequest) request;
 
         String path = req.getRequestURI();
@@ -51,7 +46,6 @@ public class TokenAuthenticationFilter implements Filter {
         String header = req.getHeader("Authorization");
         // AccessToken 이 존재하지 않는다면
         if (header == null || !header.startsWith("Bearer ")) {
-
             throw new UnauthorizedException("access 토큰이 없습니다");
         }
 

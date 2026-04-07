@@ -9,6 +9,9 @@ import org.springframework.stereotype.Service;
 
 import java.security.Key;
 import java.time.Duration;
+import java.time.Instant;
+import java.time.LocalDateTime;
+import java.time.ZoneOffset;
 import java.util.Date;
 
 @Service
@@ -57,6 +60,11 @@ public class JwtService {
 
     public Long getMemberId(final String token) {
         return getClaims(token).get(MEMBER_ID_CLAIM, Long.class);
+    }
+
+    public LocalDateTime getExpiration(final String token) {
+        Instant expiration = getClaims(token).getExpiration().toInstant();
+        return LocalDateTime.ofInstant(expiration, ZoneOffset.UTC);
     }
 
     private String createToken(
