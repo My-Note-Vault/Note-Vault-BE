@@ -81,9 +81,10 @@ public class Member extends Auditable {
         );
     }
 
-    public void completeProfile(final String nickname, final String profileImageKey) {
+    public void completeProfile(final String nickname, final String profileImageKey, final DayStartTime dayStartTime) {
         this.nickname = nickname;
         this.profileImageKey = profileImageKey;
+        this.dayStartTime = dayStartTime;
     }
 
     public void updateProfileImageKey(final String profileImageKey) {

@@ -36,7 +36,7 @@ public class MemberController {
         return ResponseEntity.ok(response);
     }
 
-    @PostMapping("/profile")
+    @PatchMapping("/profile")
     public ResponseEntity<Void> completeProfile(
             @RequestBody final CompleteProfileRequest request,
             @AuthMemberId final Long memberId

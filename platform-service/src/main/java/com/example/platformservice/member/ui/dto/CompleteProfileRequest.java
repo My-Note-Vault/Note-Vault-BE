@@ -1,5 +1,6 @@
 package com.example.platformservice.member.ui.dto;
 
+import com.example.platformservice.member.domain.value.DayStartTime;
 import jakarta.validation.constraints.NotBlank;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
@@ -13,8 +14,6 @@ public class CompleteProfileRequest {
     @NotBlank
     private final String profileImageKey;
 
+    private final DayStartTime dayStartTime;
 
-    /**
-     * 사용자가 선택을 원하지 않으면 기본 닉네임과 기본 이미지를 전송받는다..
-     */
 }

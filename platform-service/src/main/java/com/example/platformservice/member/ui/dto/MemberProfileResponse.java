@@ -10,6 +10,5 @@ public class MemberProfileResponse {
 
     private final String nickname;
     private final String profileImageKey;
-    private final String email;
     private final DayStartTime dayStartTime;
 }

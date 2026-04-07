@@ -37,7 +37,7 @@ public class MemberService {
         Member member = memberRepository.findById(memberId)
                 .orElseThrow(() -> new NoSuchElementException(NO_USER_MESSAGE));
 
-        member.completeProfile(request.getNickname(), request.getProfileImageKey());
+        member.completeProfile(request.getNickname(), request.getProfileImageKey(), request.getDayStartTime());
     }
 
     @Transactional(readOnly = true)
@@ -72,7 +72,6 @@ public class MemberService {
         return new MemberProfileResponse(
                 member.getNickname(),
                 member.getProfileImageKey(),
-                member.getEmail(),
                 member.getDayStartTime()
         );
     }

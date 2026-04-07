@@ -29,9 +29,6 @@ public class OAuthController {
         return oAuthService.processLogin();
     }
 
-
-
-
     @GetMapping("/callback/google")
     public ResponseEntity<Map<String, Object>> callbackFromGoogle(
             @RequestParam("code") String code,
