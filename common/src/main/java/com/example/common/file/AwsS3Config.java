@@ -31,7 +31,7 @@ public class AwsS3Config {
     @Bean
     public S3Presigner s3Presigner() {
         return S3Presigner.builder()
-                .region(Region.AP_NORTHEAST_2)
+                .region(Region.US_EAST_2)
                 .credentialsProvider(StaticCredentialsProvider.create(
                         AwsBasicCredentials.create(accessKey, secretKey)
                 ))
