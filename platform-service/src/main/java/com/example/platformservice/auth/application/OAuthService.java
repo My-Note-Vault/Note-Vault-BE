@@ -156,8 +156,8 @@ public class OAuthService {
         String newAccessToken = jwtService.createAccessToken(member.getId(), member.getEmail());
         String newRefreshToken = jwtService.createRefreshToken(member.getId(), member.getEmail());
 
-        refreshTokenRepository.delete(savedRefreshToken);
-        refreshTokenRepository.save(RefreshToken.create(memberId, newRefreshToken, jwtService.getExpiration(newRefreshToken)));
+        savedRefreshToken.update(newRefreshToken, jwtService.getExpiration(newRefreshToken));
+        refreshTokenRepository.save(savedRefreshToken);
 
         return new TokenResponse(newAccessToken, newRefreshToken);
     }
