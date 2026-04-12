@@ -14,6 +14,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 import org.springframework.web.util.UriComponentsBuilder;
 
@@ -121,24 +122,26 @@ public class OAuthService {
         );
     }
 
+    @Transactional
     public TokenResponse issueTokens(OAuthUserInfo userInfo) {
         String accessToken = jwtService.createAccessToken(userInfo.getUserId(), userInfo.getEmail());
         String refreshToken = jwtService.createRefreshToken(userInfo.getUserId(), userInfo.getEmail());
 
-        saveRefreshToken(userInfo.getUserId(), refreshToken);
-
+        refreshTokenRepository.findByMemberId(userInfo.getUserId())
+                .ifPresentOrElse(
+                        savedToken -> savedToken.update(refreshToken, jwtService.getExpiration(refreshToken)),
+                        () -> refreshTokenRepository.save(
+                                RefreshToken.create(userInfo.getUserId(), refreshToken, jwtService.getExpiration(refreshToken))
+                        )
+                );
         return new TokenResponse(accessToken, refreshToken);
     }
 
+    @Transactional
     public TokenResponse refreshTokens(final String refreshToken) {
-        if (refreshToken == null || refreshToken.isBlank()) {
-            throw new UnauthorizedException("refresh 토큰이 없습니다");
-        }
-
         if (jwtService.isInvalidToken(refreshToken) || !jwtService.isRefreshToken(refreshToken)) {
             throw new UnauthorizedException("유효하지 않은 refresh 토큰입니다");
         }
-
         Long memberId = jwtService.getMemberId(refreshToken);
         RefreshToken savedRefreshToken = refreshTokenRepository.findByMemberId(memberId)
                 .orElseThrow(() -> new UnauthorizedException("저장된 refresh 토큰이 없습니다"));
@@ -146,25 +149,15 @@ public class OAuthService {
         if (!savedRefreshToken.getToken().equals(refreshToken)) {
             throw new UnauthorizedException("저장된 refresh 토큰과 일치하지 않습니다");
         }
-
         Member member = memberRepository.findById(memberId)
                 .orElseThrow(() -> new UnauthorizedException("회원 정보를 찾을 수 없습니다"));
 
         String newAccessToken = jwtService.createAccessToken(member.getId(), member.getEmail());
         String newRefreshToken = jwtService.createRefreshToken(member.getId(), member.getEmail());
 
-        saveRefreshToken(member.getId(), newRefreshToken);
+        refreshTokenRepository.delete(savedRefreshToken);
+        refreshTokenRepository.save(RefreshToken.create(memberId, newRefreshToken, jwtService.getExpiration(newRefreshToken)));
 
         return new TokenResponse(newAccessToken, newRefreshToken);
-    }
-
-    private void saveRefreshToken(final Long memberId, final String refreshToken) {
-        refreshTokenRepository.findByMemberId(memberId)
-                .ifPresentOrElse(
-                        savedToken -> savedToken.update(refreshToken, jwtService.getExpiration(refreshToken)),
-                        () -> refreshTokenRepository.save(
-                                RefreshToken.create(memberId, refreshToken, jwtService.getExpiration(refreshToken))
-                        )
-                );
     }
 }
