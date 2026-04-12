@@ -24,6 +24,7 @@ import java.security.NoSuchAlgorithmException;
 import java.security.SecureRandom;
 import java.util.Base64;
 import java.util.Map;
+import java.util.NoSuchElementException;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -140,17 +141,17 @@ public class OAuthService {
     @Transactional
     public TokenResponse refreshTokens(final String refreshToken) {
         if (jwtService.isInvalidToken(refreshToken) || !jwtService.isRefreshToken(refreshToken)) {
-            throw new UnauthorizedException("유효하지 않은 refresh 토큰입니다");
+            throw new IllegalArgumentException("유효하지 않은 refresh 토큰입니다");
         }
         Long memberId = jwtService.getMemberId(refreshToken);
         RefreshToken savedRefreshToken = refreshTokenRepository.findByMemberId(memberId)
-                .orElseThrow(() -> new UnauthorizedException("저장된 refresh 토큰이 없습니다"));
+                .orElseThrow(() -> new NoSuchElementException("저장된 refresh 토큰이 없습니다"));
 
         if (!savedRefreshToken.getToken().equals(refreshToken)) {
-            throw new UnauthorizedException("저장된 refresh 토큰과 일치하지 않습니다");
+            throw new IllegalArgumentException("저장된 refresh 토큰과 일치하지 않습니다");
         }
         Member member = memberRepository.findById(memberId)
-                .orElseThrow(() -> new UnauthorizedException("회원 정보를 찾을 수 없습니다"));
+                .orElseThrow(() -> new NoSuchElementException("회원 정보를 찾을 수 없습니다"));
 
         String newAccessToken = jwtService.createAccessToken(member.getId(), member.getEmail());
         String newRefreshToken = jwtService.createRefreshToken(member.getId(), member.getEmail());
