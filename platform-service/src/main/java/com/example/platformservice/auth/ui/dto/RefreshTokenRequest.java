@@ -1,13 +1,11 @@
 package com.example.platformservice.auth.ui.dto;
 
 import lombok.Getter;
-import lombok.NoArgsConstructor;
-import lombok.Setter;
+import lombok.RequiredArgsConstructor;
 
 @Getter
-@Setter
-@NoArgsConstructor
+@RequiredArgsConstructor
 public class RefreshTokenRequest {
 
-    private String refreshToken;
+    private final String refreshToken;
 }
