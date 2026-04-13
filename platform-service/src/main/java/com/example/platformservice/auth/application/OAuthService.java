@@ -1,7 +1,7 @@
 package com.example.platformservice.auth.application;
 
-import com.example.common.jwt.JwtService;
 import com.example.common.exception.UnauthorizedException;
+import com.example.common.jwt.JwtService;
 import com.example.platformservice.auth.component.RefreshToken;
 import com.example.platformservice.auth.component.RefreshTokenRepository;
 import com.example.platformservice.auth.component.dto.OAuthUserInfo;
@@ -78,8 +78,8 @@ public class OAuthService {
     }
 
 
+    @Transactional
     public OAuthUserInfo handleGoogleCallback(String code, String state) {
-
         String codeVerifier = sessionStore.remove(state);
         if (codeVerifier == null) {
             throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Invalid state");
@@ -141,17 +141,17 @@ public class OAuthService {
     @Transactional
     public TokenResponse refreshTokens(final String refreshToken) {
         if (jwtService.isInvalidToken(refreshToken) || !jwtService.isRefreshToken(refreshToken)) {
-            throw new IllegalArgumentException("유효하지 않은 refresh 토큰입니다");
+            throw new UnauthorizedException("유효하지 않은 refresh 토큰입니다");
         }
         Long memberId = jwtService.getMemberId(refreshToken);
         RefreshToken savedRefreshToken = refreshTokenRepository.findByMemberId(memberId)
-                .orElseThrow(() -> new NoSuchElementException("저장된 refresh 토큰이 없습니다"));
+                .orElseThrow(() -> new UnauthorizedException("저장된 refresh 토큰이 없습니다"));
 
         if (!savedRefreshToken.getToken().equals(refreshToken)) {
-            throw new IllegalArgumentException("저장된 refresh 토큰과 일치하지 않습니다");
+            throw new UnauthorizedException("저장된 refresh 토큰과 일치하지 않습니다");
         }
         Member member = memberRepository.findById(memberId)
-                .orElseThrow(() -> new NoSuchElementException("회원 정보를 찾을 수 없습니다"));
+                .orElseThrow(() -> new UnauthorizedException("회원 정보를 찾을 수 없습니다"));
 
         String newAccessToken = jwtService.createAccessToken(member.getId(), member.getEmail());
         String newRefreshToken = jwtService.createRefreshToken(member.getId(), member.getEmail());
