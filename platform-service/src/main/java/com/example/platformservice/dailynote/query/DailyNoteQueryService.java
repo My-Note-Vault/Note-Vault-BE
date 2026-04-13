@@ -32,10 +32,37 @@ public class DailyNoteQueryService {
     private final MemberRepository memberRepository;
 
     @Transactional(readOnly = true)
-    public DailyNoteResponse findDailyNoteById(
-            final Long authorId,
-            final Long dailyNoteId
-    ) {
+    public DailyNoteResponse findDailyNoteByDate(final Long authorId, final LocalDate date) {
+        Member member = memberRepository.findById(authorId)
+                .orElseThrow(() -> new NoSuchElementException(NO_USER_MESSAGE));
+
+        DayStartTime dayStartTime = member.getDayStartTime();
+        LocalTime criteriaTime = LocalTime.of(dayStartTime.getHour(), dayStartTime.getMinute(), 0);
+
+        LocalDateTime startDateTime = LocalDateTime.of(date, criteriaTime);
+        LocalDateTime endDateTime = startDateTime.plusDays(1);
+
+        DailyNote dailyNote = dailyNoteRepository.findTodayDailyNoteByAuthorId(authorId, startDateTime, endDateTime)
+                .orElseThrow(() -> new NoSuchElementException("해당 날짜의 데일리 노트를 찾을 수 없습니다."));
+
+        return new DailyNoteResponse(
+                dailyNote.getId(),
+                dailyNote.getTodayTodo(),
+                dailyNote.getTomorrowTodo(),
+                dailyNote.getMemo(),
+                date
+        );
+
+    }
+
+    @Transactional(readOnly = true)
+    public DailyNoteResponse findDailyNoteById(final Long authorId, final Long dailyNoteId) {
+        Member member = memberRepository.findById(authorId)
+                .orElseThrow(() -> new NoSuchElementException(NO_USER_MESSAGE));
+
+        DayStartTime dayStartTime = member.getDayStartTime();
+        LocalTime criteriaTime = LocalTime.of(dayStartTime.getHour(), dayStartTime.getMinute(), 0);
+
         DailyNote dailyNote = dailyNoteRepository.findById(dailyNoteId)
                 .orElseThrow(() -> new NoSuchElementException(CANNOT_FIND_DAILY_NOTE));
 
@@ -43,11 +70,15 @@ public class DailyNoteQueryService {
             throw new IllegalArgumentException("조회가 허용되지 않았습니다");
         }
 
+        LocalDateTime createdAt = dailyNote.getCreatedAt();
+        LocalDate calculatedDate = calculateDate(createdAt.toLocalDate(), criteriaTime, createdAt.toLocalTime());
+
         return new DailyNoteResponse(
                 dailyNote.getId(),
                 dailyNote.getTodayTodo(),
                 dailyNote.getTomorrowTodo(),
-                dailyNote.getMemo()
+                dailyNote.getMemo(),
+                calculatedDate
         );
     }
 
@@ -58,9 +89,9 @@ public class DailyNoteQueryService {
 
         DayStartTime dayStartTime = member.getDayStartTime();
         LocalTime criteriaTime = LocalTime.of(dayStartTime.getHour(), dayStartTime.getMinute(), 0);
+        LocalDateTime now = LocalDateTime.now();
 
-        LocalTime nowLocalTime = LocalTime.now();
-        LocalDate calculatedDate = calculateDate(criteriaTime, nowLocalTime);
+        LocalDate calculatedDate = calculateDate(now.toLocalDate(), criteriaTime, now.toLocalTime());
         LocalDateTime logicalNowDateTime = LocalDateTime.of(calculatedDate, criteriaTime);
 
         DailyNote dailyNote = dailyNoteRepository.findFirstByAuthorIdAndCreatedAtBetween(authorId, logicalNowDateTime, logicalNowDateTime.plusDays(1))
@@ -77,28 +108,41 @@ public class DailyNoteQueryService {
                 dailyNote.getId(),
                 dailyNote.getTodayTodo(),
                 dailyNote.getTomorrowTodo(),
-                dailyNote.getMemo()
+                dailyNote.getMemo(),
+                calculatedDate
         );
     }
 
-    private LocalDate calculateDate(final LocalTime criteriaTime, final LocalTime nowLocalTime) {
-        if (nowLocalTime.isBefore(criteriaTime)) {
-            return LocalDate.now().minusDays(1);
+    private LocalDate calculateDate(final LocalDate baseDate, final LocalTime criteriaTime, final LocalTime targetTime) {
+        if (targetTime.isBefore(criteriaTime)) {
+            return baseDate.minusDays(1);
         }
-        return LocalDate.now();
+        return baseDate;
     }
 
     @Transactional(readOnly = true)
     public List<DailyNoteResponse> findAllDailyNotesByAuthorId(final Long authorId) {
+        Member member = memberRepository.findById(authorId)
+                .orElseThrow(() -> new NoSuchElementException(NO_USER_MESSAGE));
+
+        DayStartTime dayStartTime = member.getDayStartTime();
+        LocalTime criteriaTime = LocalTime.of(dayStartTime.getHour(), dayStartTime.getMinute(), 0);
+
         List<DailyNote> allDailyNotes = dailyNoteRepository.findAllByAuthorId(authorId);
 
         return allDailyNotes.stream()
-                .map(dailyNote -> new DailyNoteResponse(
-                        dailyNote.getId(),
-                        dailyNote.getTodayTodo(),
-                        dailyNote.getTomorrowTodo(),
-                        dailyNote.getMemo()
-                ))
+                .map(dailyNote -> {
+                    LocalDateTime createdAt = dailyNote.getCreatedAt();
+                    LocalDate calculatedDate = calculateDate(createdAt.toLocalDate(), criteriaTime, createdAt.toLocalTime());
+
+                    return new DailyNoteResponse(
+                            dailyNote.getId(),
+                            dailyNote.getTodayTodo(),
+                            dailyNote.getTomorrowTodo(),
+                            dailyNote.getMemo(),
+                            calculatedDate
+                    );
+                })
                 .toList();
     }
 

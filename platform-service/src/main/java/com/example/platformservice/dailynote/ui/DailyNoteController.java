@@ -10,6 +10,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.time.LocalDate;
 import java.util.List;
 
 import static com.example.platformservice.Const.DAILY_NOTES_BASIC_PATH;
@@ -21,6 +22,15 @@ public class DailyNoteController {
 
     private final DailyNoteCommandService dailyNoteCommandService;
     private final DailyNoteQueryService dailyNoteQueryService;
+
+    @GetMapping({"/{date}"})
+    public ResponseEntity<DailyNoteResponse> findSpecificDailyNote(
+            @PathVariable("date") final LocalDate date,
+            @AuthMemberId final Long authorId
+    ) {
+        DailyNoteResponse dailyNoteResponse = dailyNoteQueryService.findDailyNoteByDate(authorId, date);
+        return ResponseEntity.ok(dailyNoteResponse);
+    }
 
     @GetMapping({"/{dailyNoteId}"})
     public ResponseEntity<DailyNoteResponse> findSpecificDailyNote(

@@ -24,4 +24,13 @@ SELECT d
     LIMIT 1
 """)
     Optional<String> findLatestTomorrowTodoWithin3days(Long authorId, LocalDateTime criteriaDateTime);
+
+    @Query("""
+SELECT d 
+FROM DailyNote d
+WHERE d.createdAt >= :startDateTime
+AND d.createdAt < :endDateTime
+AND d.authorId = :authorId
+""")
+    Optional<DailyNote> findTodayDailyNoteByAuthorId(Long authorId, LocalDateTime startDateTime, LocalDateTime endDateTime);
 }
