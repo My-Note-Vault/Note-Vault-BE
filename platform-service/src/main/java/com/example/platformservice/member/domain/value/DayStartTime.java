@@ -1,5 +1,6 @@
 package com.example.platformservice.member.domain.value;
 
+import jakarta.persistence.Column;
 import jakarta.persistence.Embeddable;
 import lombok.AccessLevel;
 import lombok.EqualsAndHashCode;
@@ -16,7 +17,9 @@ public class DayStartTime {
 
     public static final DayStartTime MIDNIGHT = new DayStartTime(0, 0);
 
+    @Column(nullable = false)
     private int hour;
+    @Column(nullable = false)
     private int minute;
 
     public DayStartTime(int hour, int minute) {

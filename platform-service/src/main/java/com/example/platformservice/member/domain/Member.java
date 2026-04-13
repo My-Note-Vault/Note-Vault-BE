@@ -39,7 +39,7 @@ public class Member extends Auditable {
     @Column(nullable = false)
     private String providerUserId;
 
-    @Column(nullable = false)
+    @Embedded
     private DayStartTime dayStartTime;
 
     private String lastViewedPath;
