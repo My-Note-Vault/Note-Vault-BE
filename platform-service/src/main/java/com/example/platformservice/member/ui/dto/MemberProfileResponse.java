@@ -8,6 +8,7 @@ import lombok.RequiredArgsConstructor;
 @RequiredArgsConstructor
 public class MemberProfileResponse {
 
+    private final String name;
     private final String nickname;
     private final String profileImageKey;
     private final DayStartTime dayStartTime;

@@ -7,11 +7,7 @@ import com.example.platformservice.member.domain.Member;
 import com.example.platformservice.member.domain.value.DayStartTime;
 import com.example.platformservice.member.infra.AccountRepository;
 import com.example.platformservice.member.infra.MemberRepository;
-import com.example.platformservice.member.ui.dto.CompleteProfileRequest;
-import com.example.platformservice.member.ui.dto.CreateAccountRequest;
-import com.example.platformservice.member.ui.dto.GenerateProfileImageUploadUrlResponse;
-import com.example.platformservice.member.ui.dto.MemberProfileResponse;
-import com.example.platformservice.member.ui.dto.ProfileImageResponse;
+import com.example.platformservice.member.ui.dto.*;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -70,6 +66,7 @@ public class MemberService {
         Member member = findMember(memberId);
 
         return new MemberProfileResponse(
+                member.getName(),
                 member.getNickname(),
                 member.getProfileImageKey(),
                 member.getDayStartTime()
