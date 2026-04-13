@@ -21,7 +21,7 @@ public class MemberController {
         return ResponseEntity.ok(lastVisitedPath);
     }
 
-    @PostMapping("/last-visited-path")
+    @PutMapping("/last-visited-path")
     public ResponseEntity<Void> updateLastVisitedPath(
             @RequestBody final UpdateLastVisitedPathRequest request,
             @AuthMemberId final Long memberId
