@@ -18,9 +18,9 @@ public class DayStartTime {
     public static final DayStartTime MIDNIGHT = new DayStartTime(0, 0);
 
     @Column(nullable = false)
-    public int hour;
+    private int hour;
     @Column(nullable = false)
-    public int minute;
+    private int minute;
 
     public DayStartTime(int hour, int minute) {
         this.hour = hour;
