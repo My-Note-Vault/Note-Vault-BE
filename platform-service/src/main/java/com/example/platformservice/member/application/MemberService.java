@@ -33,7 +33,7 @@ public class MemberService {
         Member member = memberRepository.findById(memberId)
                 .orElseThrow(() -> new UnauthorizedException(NO_USER_MESSAGE));
 
-        member.completeProfile(request.getNickname(), request.getProfileImageKey(), request.getDayStartTime());
+        member.completeProfile(request.getNickname(), request.getDatStartHour(), request.getDatStartMinute());
     }
 
     @Transactional(readOnly = true)
