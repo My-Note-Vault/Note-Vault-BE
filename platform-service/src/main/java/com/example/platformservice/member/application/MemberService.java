@@ -1,17 +1,20 @@
 package com.example.platformservice.member.application;
 
+import com.example.common.exception.UnauthorizedException;
 import com.example.common.file.image.ImageUtils;
 import com.example.common.file.image.UploadImageResponse;
 import com.example.platformservice.member.domain.Member;
 import com.example.platformservice.member.domain.value.DayStartTime;
 import com.example.platformservice.member.infra.MemberRepository;
-import com.example.platformservice.member.ui.dto.*;
+import com.example.platformservice.member.ui.dto.CompleteProfileRequest;
+import com.example.platformservice.member.ui.dto.GenerateProfileImageUploadUrlResponse;
+import com.example.platformservice.member.ui.dto.MemberProfileResponse;
+import com.example.platformservice.member.ui.dto.ProfileImageResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
-import java.util.NoSuchElementException;
 
 import static com.example.platformservice.Const.NO_USER_MESSAGE;
 
@@ -28,7 +31,7 @@ public class MemberService {
             final Long memberId
     ) {
         Member member = memberRepository.findById(memberId)
-                .orElseThrow(() -> new NoSuchElementException(NO_USER_MESSAGE));
+                .orElseThrow(() -> new UnauthorizedException(NO_USER_MESSAGE));
 
         member.completeProfile(request.getNickname(), request.getProfileImageKey(), request.getDayStartTime());
     }
@@ -45,7 +48,7 @@ public class MemberService {
     @Transactional(readOnly = true)
     public String getLastVisitedPath(final Long memberId) {
         Member member = memberRepository.findById(memberId)
-                .orElseThrow(() -> new NoSuchElementException(NO_USER_MESSAGE));
+                .orElseThrow(() -> new UnauthorizedException(NO_USER_MESSAGE));
 
         return member.getLastViewedPath();
     }
@@ -53,7 +56,7 @@ public class MemberService {
     @Transactional
     public void updateLastVisitedPath(final Long memberId, final String lastVisitedPath) {
         Member member = memberRepository.findById(memberId)
-                .orElseThrow(() -> new NoSuchElementException(NO_USER_MESSAGE));
+                .orElseThrow(() -> new UnauthorizedException(NO_USER_MESSAGE));
 
         member.setLastViewedPath(lastVisitedPath);
     }
@@ -132,7 +135,7 @@ public class MemberService {
 
     private Member findMember(final Long memberId) {
         return memberRepository.findById(memberId)
-                .orElseThrow(() -> new NoSuchElementException(NO_USER_MESSAGE));
+                .orElseThrow(() -> new UnauthorizedException(NO_USER_MESSAGE));
     }
 
 
