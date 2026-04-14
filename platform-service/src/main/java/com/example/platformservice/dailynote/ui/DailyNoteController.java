@@ -23,7 +23,7 @@ public class DailyNoteController {
     private final DailyNoteCommandService dailyNoteCommandService;
     private final DailyNoteQueryService dailyNoteQueryService;
 
-    @GetMapping({"/{date}"})
+    @GetMapping({"/date/{date}"})
     public ResponseEntity<DailyNoteResponse> findSpecificDailyNote(
             @PathVariable("date") final LocalDate date,
             @AuthMemberId final Long authorId
