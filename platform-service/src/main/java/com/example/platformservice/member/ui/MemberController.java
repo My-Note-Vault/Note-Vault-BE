@@ -76,13 +76,4 @@ public class MemberController {
         return ResponseEntity.noContent().build();
     }
 
-    @PostMapping
-    public ResponseEntity<Long> createAccountForSelling(
-            @RequestBody final CreateAccountRequest request,
-            @AuthMemberId final Long memberId
-    ) {
-        Long accountId = memberService.addAccountInformation(request, memberId);
-        return ResponseEntity.ok(accountId);
-    }
-
 }
