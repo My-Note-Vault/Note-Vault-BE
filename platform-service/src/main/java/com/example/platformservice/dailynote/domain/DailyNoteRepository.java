@@ -1,8 +1,9 @@
-package com.example.platformservice.dailynote.command.domain;
+package com.example.platformservice.dailynote.domain;
 
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
@@ -19,11 +20,11 @@ public interface DailyNoteRepository extends JpaRepository<DailyNote, Long> {
 SELECT d
     FROM DailyNote d
     WHERE d.authorId = :authorId
-    AND d.createdAt >= :criteriaDateTime
-    ORDER BY d.createdAt DESC
+    AND d.logicalDate >= :logicalDate
+    ORDER BY d.logicalDate DESC
     LIMIT 1
 """)
-    Optional<String> findLatestTomorrowTodoWithin3days(Long authorId, LocalDateTime criteriaDateTime);
+    Optional<DailyNote> findLatestDailyNoteAfter(Long authorId, LocalDate logicalDate);
 
     @Query("""
 SELECT d 
@@ -33,4 +34,8 @@ AND d.createdAt < :endDateTime
 AND d.authorId = :authorId
 """)
     Optional<DailyNote> findTodayDailyNoteByAuthorId(Long authorId, LocalDateTime startDateTime, LocalDateTime endDateTime);
+
+    Optional<DailyNote> findByIdAndAuthorId(Long id, Long authorId);
+
+    Optional<DailyNote> findByAuthorIdAndLogicalDate(Long authorId, LocalDate logicalDate);
 }
