@@ -13,7 +13,7 @@ public interface DailyNotePlanRepository extends JpaRepository<DailyNotePlan, Lo
     // dailyNoteId = :dailyNoteId && isDone = false
     @Query("""
 SELECT p FROM DailyNotePlan dnp
-JOIN Plan p
+JOIN Plan p ON p.id = dnp.plan.id
 WHERE dnp.dailyNote.id = :dailyNoteId
 AND p.isDone = false
 """)
