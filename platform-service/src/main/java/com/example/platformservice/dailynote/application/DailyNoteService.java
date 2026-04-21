@@ -52,7 +52,7 @@ public class DailyNoteService {
             final Long planId,
             final Type type,
             final String content,
-            final boolean isDone
+            final Boolean isDone
     ) {
         DailyNote dailyNote = dailyNoteRepository.findById(dailyNoteId)
                 .orElseThrow(() -> new NoSuchElementException(NO_DAILY_NOTE_MESSAGE));

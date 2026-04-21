@@ -17,6 +17,7 @@ import java.util.List;
 
 import static com.example.platformservice.Const.DAILY_NOTES_BASIC_PATH;
 
+
 @RequiredArgsConstructor
 @RequestMapping(DAILY_NOTES_BASIC_PATH)
 @RestController

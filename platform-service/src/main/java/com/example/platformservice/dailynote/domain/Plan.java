@@ -9,8 +9,7 @@ import lombok.NoArgsConstructor;
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @Table(
-        name = "plan",
-        indexes = @Index(columnList = "daily_note_id")
+        name = "plan"
 )
 @Entity
 public class Plan extends Auditable {
@@ -24,11 +23,12 @@ public class Plan extends Auditable {
 
     private String content;
 
-    private boolean isDone;
+    private Boolean isDone;
 
     public Plan(final Type type, final String content) {
         this.type = type;
         this.content = content;
+        this.isDone = false;
     }
 
     public void edit(final Type type, final String content, final Boolean isDone) {
