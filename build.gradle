@@ -35,6 +35,9 @@ dependencies {
     // OpenFeign
     implementation 'org.springframework.cloud:spring-cloud-starter-openfeign'
 
+    // monitoring
+    runtimeOnly 'io.micrometer:micrometer-registry-prometheus'
+
     implementation project(":platform-service")
     implementation project(":workspace")
     implementation project(":common")
