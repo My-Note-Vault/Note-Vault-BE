@@ -12,8 +12,9 @@ public class PlanResponse {
     private final Long planId;
     private final Type type;
     private final String content;
+    private final Boolean isDone;
 
     public static PlanResponse from(Plan plan) {
-        return new PlanResponse(plan.getId(), plan.getType(), plan.getContent());
+        return new PlanResponse(plan.getId(), plan.getType(), plan.getContent(), plan.getIsDone());
     }
 }

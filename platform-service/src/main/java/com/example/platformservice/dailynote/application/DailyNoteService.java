@@ -105,7 +105,7 @@ public class DailyNoteService {
         DailyNote dailyNote = dailyNoteRepository.findByAuthorIdAndLogicalDate(authorId, date)
                 .orElseThrow(() -> new NoSuchElementException(NO_DAILY_NOTE_MESSAGE));
 
-        List<PlanResponse> allIncompletePlans = dailyNotePlanRepository.findAllIncompletePlans(dailyNote.getId()).stream()
+        List<PlanResponse> allIncompletePlans = dailyNotePlanRepository.findAllPlansByDailyNoteId(dailyNote.getId()).stream()
                 .map(PlanResponse::from)
                 .toList();
         return DailyNoteDetailResponse.from(dailyNote, allIncompletePlans);
@@ -120,7 +120,7 @@ public class DailyNoteService {
             throw new IllegalArgumentException(ACCESS_DENIED);
         }
 
-        List<PlanResponse> allIncompletePlans = dailyNotePlanRepository.findAllIncompletePlans(dailyNote.getId()).stream()
+        List<PlanResponse> allIncompletePlans = dailyNotePlanRepository.findAllPlansByDailyNoteId(dailyNote.getId()).stream()
                 .map(PlanResponse::from)
                 .toList();
         return new DailyNoteDetailResponse(dailyNote.getId(), dailyNote.getContent(), dailyNote.getLogicalDate(), allIncompletePlans);
@@ -145,7 +145,7 @@ public class DailyNoteService {
             Optional<DailyNote> latestDailyNote = dailyNoteRepository.findLatestDailyNoteAfter(authorId, logicalToday);
             if (latestDailyNote.isPresent()) {
                 Long latestDailyNoteId = latestDailyNote.get().getId();
-                List<Plan> allIncompletePlans = dailyNotePlanRepository.findAllIncompletePlans(latestDailyNoteId);
+                List<Plan> allIncompletePlans = dailyNotePlanRepository.findAllPlansByDailyNoteId(latestDailyNoteId);
 
                 List<DailyNotePlan> dailyNotePlans = allIncompletePlans.stream()
                         .map(plan -> new DailyNotePlan(dailyNote, plan))
@@ -160,7 +160,7 @@ public class DailyNoteService {
             }
         } else {
             dailyNote = todayNote.get();
-            List<Plan> allIncompletePlans = dailyNotePlanRepository.findAllIncompletePlans(dailyNote.getId());
+            List<Plan> allIncompletePlans = dailyNotePlanRepository.findAllPlansByDailyNoteId(dailyNote.getId());
 
             allIncompletePlanResponses = allIncompletePlans.stream()
                     .map(PlanResponse::from)

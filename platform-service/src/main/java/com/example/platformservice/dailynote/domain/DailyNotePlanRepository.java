@@ -15,7 +15,6 @@ public interface DailyNotePlanRepository extends JpaRepository<DailyNotePlan, Lo
 SELECT p FROM DailyNotePlan dnp
 JOIN Plan p ON p.id = dnp.plan.id
 WHERE dnp.dailyNote.id = :dailyNoteId
-AND p.isDone = false
 """)
-    List<Plan> findAllIncompletePlans(Long dailyNoteId);
+    List<Plan> findAllPlansByDailyNoteId(Long dailyNoteId);
 }
