@@ -21,12 +21,11 @@ public class WorkSpaceCommandService {
     @Transactional
     public Long createWorkSpace(
             final Long memberId,
-            final Long parentId,
             final String name,
             final String content,
             final Boolean isPublic
     ) {
-        WorkSpace workSpace = new WorkSpace(memberId, parentId, name, content, isPublic);
+        WorkSpace workSpace = new WorkSpace(memberId, name, content, isPublic);
         workSpaceRepository.save(workSpace);
 
         Participant participant = new Participant(workSpace.getId(), memberId);
@@ -40,7 +39,6 @@ public class WorkSpaceCommandService {
     public void editWorkSpace(
             final Long memberId,
             final Long workSpaceId,
-            final Long parentId,
             final String name,
             final String content,
             final Boolean isPublic
@@ -48,7 +46,7 @@ public class WorkSpaceCommandService {
         WorkSpace workSpace = workSpaceRepository.findById(workSpaceId)
                 .orElseThrow(() -> new NoSuchElementException("WorkSpace 를 찾을 수 없습니다"));
 
-        workSpace.edit(memberId, parentId, name, content, isPublic);
+        workSpace.edit(memberId, name, content, isPublic);
     }
 
     // creator 만 사용 가능

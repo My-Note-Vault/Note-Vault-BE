@@ -24,8 +24,6 @@ public class WorkSpace extends Auditable {
 
     private Long creatorId;
 
-    private Long parentId;
-
     @Column(nullable = false)
     private String name;
 
@@ -37,13 +35,11 @@ public class WorkSpace extends Auditable {
 
     public WorkSpace(
             final Long creatorId,
-            final Long parentId,
             final String name,
             final String content,
             final Boolean isPublic
     ) {
         this.creatorId = creatorId;
-        this.parentId = parentId;
         this.name = name;
         this.content = content;
 
@@ -53,7 +49,6 @@ public class WorkSpace extends Auditable {
 
     public void edit(
             final Long creatorId,
-            final Long parentId,
             final String name,
             final String content,
             final Boolean isPublic
@@ -61,7 +56,6 @@ public class WorkSpace extends Auditable {
         if (!this.creatorId.equals(creatorId)) {
             throw new NoSuchElementException("자신의 WorkSpace가 아닙니다!");
         }
-        this.parentId = parentId == null ? this.parentId : parentId;
         this.name = name == null ? this.name : name;
         this.content = content == null ? this.content : content;
         this.isPublic = isPublic == null ? this.isPublic : isPublic;

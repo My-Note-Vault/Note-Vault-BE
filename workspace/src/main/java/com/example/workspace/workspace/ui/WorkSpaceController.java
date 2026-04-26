@@ -46,7 +46,6 @@ public class WorkSpaceController {
     ) {
         Long workSpaceId = workSpaceCommandService.createWorkSpace(
                 memberId,
-                request.getParentId(),
                 request.getName(),
                 request.getContent(),
                 request.getIsPublic()
@@ -75,7 +74,6 @@ public class WorkSpaceController {
         workSpaceCommandService.editWorkSpace(
                 memberId,
                 request.getWorkSpaceId(),
-                request.getParentId(),
                 request.getName(),
                 request.getContent(),
                 request.getIsPublic()
