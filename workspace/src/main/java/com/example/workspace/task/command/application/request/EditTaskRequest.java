@@ -13,11 +13,9 @@ public class EditTaskRequest {
 
     @NotBlank
     private final Long taskId;
-    @NotBlank
+
     private final String title;
-    @NotBlank
     private final String content;
-    @NotBlank
     private final Status status;
 
     private final LocalDateTime startDateTime;

@@ -14,10 +14,13 @@ import java.time.LocalDateTime;
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @Table(
         name = "task",
-        indexes = @Index(columnList = "author_id")
+        indexes = @Index(columnList = "workspace_id")
 )
 @Entity
 public class Task extends Auditable {
+
+    private static final String DEFAULT_TITLE = "새 Task";
+    private static final String DEFAULT_CONTENT = "";
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -26,7 +29,7 @@ public class Task extends Auditable {
     @Column(name = "workspace_id", nullable = false)
     private Long workSpaceId;
 
-    @Column(nullable = false, unique = true)
+    @Column(nullable = false)
     private Long authorId;
 
     @Embedded
@@ -38,33 +41,17 @@ public class Task extends Auditable {
     @Column(columnDefinition = "MEDIUMTEXT")
     private String content;
 
-    public Task(
-            final Long workSpaceId,
-            final Long authorId,
-            final String title,
-            final String content,
-            final Status status
-    ) {
-        this(workSpaceId, authorId, null, null, status, title, content);
+
+    public Task(final Long workSpaceId, final Long authorId) {
+        this(workSpaceId, authorId, Status.NOT_STARTED, LocalDateTime.now(), LocalDateTime.now(), DEFAULT_TITLE, DEFAULT_CONTENT);
     }
 
     public Task(
             final Long workSpaceId,
             final Long authorId,
-            final LocalDateTime startDateTime,
             final Status status,
-            final String title,
-            final String content
-    ) {
-        this(workSpaceId, authorId, startDateTime, null, status, title, content);
-    }
-
-    public Task(
-            final Long workSpaceId,
-            final Long authorId,
             final LocalDateTime startDateTime,
             final LocalDateTime endDateTime,
-            final Status status,
             final String title,
             final String content
     ) {

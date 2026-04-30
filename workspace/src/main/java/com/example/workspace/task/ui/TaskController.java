@@ -24,8 +24,8 @@ public class TaskController {
 
     @GetMapping
     public ResponseEntity<Task> findSpecificTask(
-            @RequestParam final Long authorId,
-            @RequestParam final Long taskId
+            @RequestParam final Long taskId,
+            @AuthMemberId final Long authorId
     ) {
         Task task = taskQueryService.findTaskById(authorId, taskId);
         return ResponseEntity.ok(task);
@@ -42,15 +42,7 @@ public class TaskController {
             @RequestBody final CreateTaskRequest request,
             @AuthMemberId final Long memberId
     ) {
-        Long taskId = taskCommandService.createTask(
-                request.getWorkSpaceId(),
-                memberId,
-                request.getStartDateTime(),
-                request.getEndDateTime(),
-                request.getStatus(),
-                request.getTitle(),
-                request.getContent()
-        );
+        Long taskId = taskCommandService.createTask(request.getWorkSpaceId(), memberId);
         return ResponseEntity.ok(taskId);
     }
 

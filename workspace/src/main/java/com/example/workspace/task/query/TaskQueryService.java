@@ -2,6 +2,7 @@ package com.example.workspace.task.query;
 
 import com.example.workspace.task.command.domain.Task;
 import com.example.workspace.task.command.domain.TaskRepository;
+import com.example.workspace.task.infra.TaskJdbcRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -15,6 +16,7 @@ import java.util.NoSuchElementException;
 public class TaskQueryService {
 
     private final TaskRepository taskRepository;
+    private final TaskJdbcRepository taskJdbcRepository;
 
     public Task findTaskById(
             final Long authorId,
@@ -32,6 +34,4 @@ public class TaskQueryService {
     public List<Task> findAllTasksByAuthorId(final Long authorId) {
         return taskRepository.findAllByAuthorId(authorId);
     }
-
-
 }

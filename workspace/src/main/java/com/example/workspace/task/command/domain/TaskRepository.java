@@ -7,4 +7,6 @@ import java.util.List;
 public interface TaskRepository extends JpaRepository<Task, Long> {
 
     List<Task> findAllByAuthorId(Long authorId);
+
+    List<Task> findAllByWorkSpaceId(Long workSpaceId);
 }

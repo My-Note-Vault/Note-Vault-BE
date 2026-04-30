@@ -19,16 +19,8 @@ public class TaskCommandService {
     private final TaskRepository taskRepository;
 
     @Transactional
-    public Long createTask(
-            final Long workSpaceId,
-            final Long memberId,
-            final LocalDateTime startDateTime,
-            final LocalDateTime endDateTime,
-            final Status status,
-            final String title,
-            final String content
-    ) {
-        Task task = new Task(workSpaceId, memberId, startDateTime, endDateTime, status, title, content);
+    public Long createTask(final Long workSpaceId, final Long authorId) {
+        Task task = new Task(workSpaceId, authorId);
         taskRepository.save(task);
 
         return task.getId();
