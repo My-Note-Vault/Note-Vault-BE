@@ -14,7 +14,7 @@ import java.util.List;
 
 
 @RequiredArgsConstructor
-@RequestMapping("/api/v1/subTasks")
+@RequestMapping("/api/v1/subtasks")
 @RestController
 public class SubTaskController {
 
