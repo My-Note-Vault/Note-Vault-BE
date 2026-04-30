@@ -25,7 +25,7 @@ public class Trivia extends Auditable {
     @Column(name = "subtask_id", nullable = false)
     private Long subTaskId;
 
-    @Column(nullable = false, unique = true)
+    @Column(nullable = false)
     private Long authorId;
 
     private String title;

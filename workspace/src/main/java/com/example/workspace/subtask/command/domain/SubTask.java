@@ -27,7 +27,7 @@ public class SubTask extends Auditable {
     @Column(nullable = false)
     private Long taskId;
 
-    @Column(nullable = false, unique = true)
+    @Column(nullable = false)
     private Long authorId;
 
     @Embedded
