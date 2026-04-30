@@ -29,7 +29,7 @@ public class CalendarJdbcRepositoryImpl implements CalendarJdbcRepository {
                 """;
 
         RowMapper<DailyEventRow> mapper = (rs, rowNum) -> {
-            Status status = rs.getObject("t.status", Status.class);
+            Status status = Status.valueOf(rs.getString("t.status"));
 
             DailyEventRow.EventStatus eventStatus = status.equals(Status.COMPLETED)
                     ? DailyEventRow.EventStatus.CLOSED
@@ -61,7 +61,7 @@ public class CalendarJdbcRepositoryImpl implements CalendarJdbcRepository {
                 """;
 
         RowMapper<DailyEventRow> mapper = (rs, rowNum) -> {
-            Status status = rs.getObject("st.status", Status.class);
+            Status status = Status.valueOf(rs.getString("st.status"));
 
             DailyEventRow.EventStatus eventStatus = status.equals(Status.COMPLETED)
                     ? DailyEventRow.EventStatus.CLOSED
