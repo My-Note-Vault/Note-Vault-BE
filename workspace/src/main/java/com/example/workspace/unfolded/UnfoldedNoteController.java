@@ -23,17 +23,20 @@ public class UnfoldedNoteController {
     }
 
     @GetMapping("/note-info")
-    public ResponseEntity<List<NoteInfoResponse>> findAllNotesInfo(@AuthMemberId final Long memberId) {
-        List<NoteInfoResponse> allNotesInfo = unfoldedNoteService.findAllNotesInfo(memberId);
+    public ResponseEntity<List<TaskOverviewResponse>> findAllNotesInfo(
+            @RequestParam("workspace") Long workSpaceId,
+            @AuthMemberId final Long memberId
+    ) {
+        List<TaskOverviewResponse> allNotesInfo = unfoldedNoteService.findAllNotesInfo(memberId, workSpaceId);
         return ResponseEntity.ok(allNotesInfo);
     }
 
     @PostMapping
-    public ResponseEntity<Void> updateSidebar(
-            @RequestBody final List<UnfoldedNoteId> request,
+    public ResponseEntity<Void> addSidebarNote(
+            @RequestBody final UnfoldedNoteId request,
             @AuthMemberId final Long memberId
     ) {
-        unfoldedNoteService.replaceAll(request, memberId);
+        unfoldedNoteService.addSidebarInfo(request, memberId);
         return ResponseEntity.noContent().build();
     }
 }
