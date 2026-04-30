@@ -23,15 +23,15 @@ public class SubTaskController {
 
     @GetMapping
     public ResponseEntity<SubTask> findSpecificSubTask(
-            @RequestParam final Long authorId,
-            @RequestParam final Long taskId
+            @RequestParam final Long taskId,
+            @AuthMemberId final Long authorId
     ) {
         SubTask task = taskQueryService.findSubTaskById(authorId, taskId);
         return ResponseEntity.ok(task);
     }
 
     @GetMapping("/all")
-    public ResponseEntity<List<SubTask>> findAllSubTasks(@RequestParam final Long authorId) {
+    public ResponseEntity<List<SubTask>> findAllSubTasks(@AuthMemberId final Long authorId) {
         List<SubTask> allTasks = taskQueryService.findAllSubTasksByAuthorId(authorId);
         return ResponseEntity.ok(allTasks);
     }

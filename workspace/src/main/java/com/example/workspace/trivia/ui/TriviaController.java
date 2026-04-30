@@ -23,15 +23,15 @@ public class TriviaController {
 
     @GetMapping
     public ResponseEntity<Trivia> findSpecificTrivia(
-            @RequestParam final Long authorId,
-            @RequestParam final Long triviaId
+            @RequestParam final Long triviaId,
+            @AuthMemberId final Long authorId
     ) {
         Trivia task = triviaQueryService.findTriviaById(authorId, triviaId);
         return ResponseEntity.ok(task);
     }
 
     @GetMapping("/all")
-    public ResponseEntity<List<Trivia>> findAllTrivia(@RequestParam final Long authorId) {
+    public ResponseEntity<List<Trivia>> findAllTrivia(@AuthMemberId final Long authorId) {
         List<Trivia> allTasks = triviaQueryService.findAllTriviaByAuthorId(authorId);
         return ResponseEntity.ok(allTasks);
     }
