@@ -21,9 +21,9 @@ public class SubTaskController {
     private final SubTaskCommandService subTaskCommandService;
     private final SubTaskQueryService taskQueryService;
 
-    @GetMapping
+    @GetMapping("/{id}")
     public ResponseEntity<SubTask> findSpecificSubTask(
-            @RequestParam final Long taskId,
+            @PathVariable("id") final Long taskId,
             @AuthMemberId final Long authorId
     ) {
         SubTask task = taskQueryService.findSubTaskById(authorId, taskId);

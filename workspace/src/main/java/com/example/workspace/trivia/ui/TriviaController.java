@@ -21,9 +21,9 @@ public class TriviaController {
     private final TriviaCommandService triviaCommandService;
     private final TriviaQueryService triviaQueryService;
 
-    @GetMapping
+    @GetMapping("/{id}")
     public ResponseEntity<Trivia> findSpecificTrivia(
-            @RequestParam final Long triviaId,
+            @PathVariable("id") final Long triviaId,
             @AuthMemberId final Long authorId
     ) {
         Trivia task = triviaQueryService.findTriviaById(authorId, triviaId);

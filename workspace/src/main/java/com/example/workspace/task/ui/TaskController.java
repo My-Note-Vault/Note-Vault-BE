@@ -22,9 +22,9 @@ public class TaskController {
     private final TaskCommandService taskCommandService;
     private final TaskQueryService taskQueryService;
 
-    @GetMapping
+    @GetMapping("/{id}")
     public ResponseEntity<Task> findSpecificTask(
-            @RequestParam final Long taskId,
+            @PathVariable("id") final Long taskId,
             @AuthMemberId final Long authorId
     ) {
         Task task = taskQueryService.findTaskById(authorId, taskId);

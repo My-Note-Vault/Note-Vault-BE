@@ -22,9 +22,9 @@ public class WorkSpaceController {
     private final WorkSpaceCommandService workSpaceCommandService;
     private final WorkSpaceQueryService workSpaceQueryService;
 
-    @GetMapping
+    @GetMapping("/{id}")
     public ResponseEntity<WorkSpace> findSpecificWorkSpace(
-            @RequestParam final Long workSpaceId,
+            @PathVariable("id") final Long workSpaceId,
             @AuthMemberId final Long memberId
     ) {
         WorkSpace workSpace = workSpaceQueryService.findWorkSpaceById(memberId, workSpaceId);
