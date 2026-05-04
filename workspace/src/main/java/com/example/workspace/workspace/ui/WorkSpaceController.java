@@ -4,9 +4,12 @@ import com.example.common.AuthMemberId;
 import com.example.workspace.workspace.command.application.WorkSpaceCommandService;
 import com.example.workspace.workspace.command.application.request.CreateWorkSpaceRequest;
 import com.example.workspace.workspace.command.application.request.EditWorkSpaceRequest;
+import com.example.workspace.workspace.command.application.request.UpdateLastVisitedPathRequest;
 import com.example.workspace.workspace.command.application.request.UpdateParticipantsRequest;
 import com.example.workspace.workspace.command.domain.WorkSpace;
 import com.example.workspace.workspace.query.WorkSpaceQueryService;
+import com.example.workspace.workspace.query.response.InvitedWorkSpaceSummaryResponse;
+import com.example.workspace.workspace.query.response.WorkSpaceSummaryResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -22,7 +25,7 @@ public class WorkSpaceController {
     private final WorkSpaceCommandService workSpaceCommandService;
     private final WorkSpaceQueryService workSpaceQueryService;
 
-    @GetMapping("/{id}")
+    @GetMapping("information/{id}")
     public ResponseEntity<WorkSpace> findSpecificWorkSpace(
             @PathVariable("id") final Long workSpaceId,
             @AuthMemberId final Long memberId
@@ -31,12 +34,19 @@ public class WorkSpaceController {
         return ResponseEntity.ok(workSpace);
     }
 
-    @GetMapping("/all")
-    public ResponseEntity<List<WorkSpace>> findAllWorkSpaces(
+    @GetMapping("/{id}")
+    public ResponseEntity<String> findSpecificWorkSpaceLastPath(
+            @PathVariable("id") final Long workSpaceId,
             @AuthMemberId final Long memberId
     ) {
-        List<WorkSpace> allWorkSpaces = workSpaceQueryService.findAllWorkSpacesByCreatorId(memberId);
-        return ResponseEntity.ok(allWorkSpaces);
+        String workSpaceLastPath = workSpaceQueryService.findWorkSpaceLastPath(workSpaceId, memberId);
+        return ResponseEntity.ok(workSpaceLastPath);
+    }
+
+    @GetMapping("/all")
+    public ResponseEntity<List<WorkSpaceSummaryResponse>> findAllWorkSpaces(@AuthMemberId final Long memberId) {
+        var allParticipatingWorkSpaces = workSpaceQueryService.findAllWorkSpacesByCreatorId(memberId);
+        return ResponseEntity.ok(allParticipatingWorkSpaces);
     }
 
     @PostMapping
@@ -63,6 +73,16 @@ public class WorkSpaceController {
                 request.getMemberIdsToAdd(),
                 request.getMemberIdsToRemove()
         );
+        return ResponseEntity.noContent().build();
+    }
+
+    @PutMapping("/{id}/last-visited-path")
+    public ResponseEntity<Void> updateLastVisitedPath(
+            @PathVariable("id") final Long workSpaceId,
+            @RequestBody final UpdateLastVisitedPathRequest request,
+            @AuthMemberId final Long memberId
+    ) {
+        workSpaceCommandService.updateLastVisitedPath(workSpaceId, memberId, request.getLastVisitedPath());
         return ResponseEntity.noContent().build();
     }
 
@@ -96,6 +116,29 @@ public class WorkSpaceController {
             @AuthMemberId final Long memberId
     ) {
         workSpaceCommandService.deleteWorkSpace(memberId, workSpaceId);
+        return ResponseEntity.noContent().build();
+    }
+
+    @GetMapping("/invitations")
+    public ResponseEntity<InvitedWorkSpaceSummaryResponse> findInvitedWorkSpaceSummary(
+            @RequestParam("code") final String code
+    ) {
+        InvitedWorkSpaceSummaryResponse response = workSpaceQueryService.findInvitedWorkSpaceSummary(code);
+        return ResponseEntity.ok(response);
+    }
+
+    @PostMapping("/{workSpaceId}/invitations")
+    public ResponseEntity<String> createInvitationCode(@PathVariable final Long workSpaceId) {
+        String code = workSpaceCommandService.createInvitationLink(workSpaceId);
+        return ResponseEntity.ok(code);
+    }
+
+    @PostMapping("/invitations/accept")
+    public ResponseEntity<Void> acceptInvitation(
+            @RequestBody final String code,
+            @AuthMemberId final Long memberId
+    ) {
+        workSpaceCommandService.acceptInvitation(memberId, code);
         return ResponseEntity.noContent().build();
     }
 

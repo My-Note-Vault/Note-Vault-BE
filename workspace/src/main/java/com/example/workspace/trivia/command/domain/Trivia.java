@@ -38,15 +38,10 @@ public class Trivia extends Auditable {
 
     public Trivia(
             final Long authorId,
-            final Long subTaskId,
-            final String title,
-            final String content,
-            final Boolean isPublic
+            final Long subTaskId
     ) {
         this.authorId = authorId;
         this.subTaskId = subTaskId;
-        this.title = title;
-        this.content = content;
 
         this.isPublic = Objects.requireNonNullElse(isPublic, false);
 

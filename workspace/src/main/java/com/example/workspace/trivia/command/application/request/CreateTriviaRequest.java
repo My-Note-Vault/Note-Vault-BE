@@ -7,12 +7,7 @@ import lombok.RequiredArgsConstructor;
 @Getter
 @RequiredArgsConstructor
 public class CreateTriviaRequest {
-
     @NotBlank
-    private final Long parentTaskId;
-    @NotBlank
-    private final String title;
+    private final Long subTaskId;
 
-    private final String content;
-    private final Boolean isPublic;
 }

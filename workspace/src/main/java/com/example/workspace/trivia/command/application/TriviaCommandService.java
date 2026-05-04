@@ -15,14 +15,8 @@ public class TriviaCommandService {
     private final TriviaRepository triviaRepository;
 
     @Transactional
-    public Long createTrivia(
-            final Long memberId,
-            final Long taskId,
-            final String title,
-            final String content,
-            final Boolean isPublic
-    ) {
-        Trivia trivia = new Trivia(memberId, taskId, title, content, isPublic);
+    public Long createTrivia(final Long authorId, final Long subTaskId) {
+        Trivia trivia = new Trivia(authorId, subTaskId);
         triviaRepository.save(trivia);
 
         return trivia.getId();
@@ -30,11 +24,11 @@ public class TriviaCommandService {
 
 
     @Transactional
-    public void editTrivia(final Long memberId, final Long triviaId, final Long parentTaskId, final String title, final String content, final Boolean isPublic) {
+    public void editTrivia(final Long memberId, final Long triviaId, final Long subTaskId, final String title, final String content, final Boolean isPublic) {
         Trivia trivia = triviaRepository.findById(triviaId)
                 .orElseThrow(() -> new NoSuchElementException("DailyNote 를 찾을 수 없습니다"));
 
-        trivia.edit(memberId, parentTaskId, title, content, isPublic);
+        trivia.edit(memberId, subTaskId, title, content, isPublic);
     }
 
     @Transactional

@@ -41,13 +41,7 @@ public class TriviaController {
             @RequestBody final CreateTriviaRequest request,
             @AuthMemberId final Long memberId
     ) {
-        Long subTaskId = triviaCommandService.createTrivia(
-                memberId,
-                request.getParentTaskId(),
-                request.getTitle(),
-                request.getContent(),
-                request.getIsPublic()
-        );
+        Long subTaskId = triviaCommandService.createTrivia(memberId, request.getSubTaskId());
         return ResponseEntity.ok(subTaskId);
     }
 
