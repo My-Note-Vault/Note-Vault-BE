@@ -11,7 +11,7 @@ public class CompleteProfileRequest {
     @NotBlank
     private final String nickname;
 
-    private final int datStartHour;
-    private final int datStartMinute;
+    private final int dayStartHour;
+    private final int dayStartMinute;
 
 }

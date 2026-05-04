@@ -8,8 +8,9 @@ import jakarta.persistence.*;
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
+import lombok.Setter;
 
-import static com.example.platformservice.Const.DAILY_NOTES_BASIC_PATH;
+import static com.example.platformservice.PlatformConst.DAILY_NOTES_BASIC_PATH;
 
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
@@ -42,7 +43,8 @@ public class Member extends Auditable {
     @Embedded
     private DayStartTime dayStartTime;
 
-    private String lastViewedPath;
+    @Setter
+    private String lastVisitedPath;
 
 
     private Member(
@@ -62,7 +64,7 @@ public class Member extends Auditable {
         this.email = email;
         this.profileImageKey = profileImageKey;
         this.dayStartTime = DayStartTime.MIDNIGHT;
-        this.lastViewedPath = DAILY_NOTES_BASIC_PATH;
+        this.lastVisitedPath = DAILY_NOTES_BASIC_PATH;
     }
 
     public static Member googleSignUp(
@@ -90,11 +92,4 @@ public class Member extends Auditable {
         this.profileImageKey = profileImageKey;
     }
 
-    public void setLastViewedPath(String lastViewedPath) {
-        this.lastViewedPath = lastViewedPath;
-    }
-
-    public void setDayStartTime(final DayStartTime dayStartTime) {
-        this.dayStartTime = dayStartTime;
-    }
 }

@@ -15,7 +15,7 @@ import org.springframework.web.bind.annotation.*;
 import java.time.LocalDate;
 import java.util.List;
 
-import static com.example.platformservice.Const.DAILY_NOTES_BASIC_PATH;
+import static com.example.platformservice.PlatformConst.DAILY_NOTES_BASIC_PATH;
 
 
 @RequiredArgsConstructor

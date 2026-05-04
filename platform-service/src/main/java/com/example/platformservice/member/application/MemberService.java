@@ -16,7 +16,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 
-import static com.example.platformservice.Const.NO_USER_MESSAGE;
+import static com.example.platformservice.PlatformConst.NO_USER_MESSAGE;
 
 @RequiredArgsConstructor
 @Service
@@ -33,7 +33,8 @@ public class MemberService {
         Member member = memberRepository.findById(memberId)
                 .orElseThrow(() -> new UnauthorizedException(NO_USER_MESSAGE));
 
-        member.completeProfile(request.getNickname(), request.getDatStartHour(), request.getDatStartMinute());
+        member.completeProfile(request.getNickname(), request.getDayStartHour(), request.getDayStartMinute());
+        memberRepository.save(member);
     }
 
     @Transactional(readOnly = true)
@@ -50,7 +51,7 @@ public class MemberService {
         Member member = memberRepository.findById(memberId)
                 .orElseThrow(() -> new UnauthorizedException(NO_USER_MESSAGE));
 
-        return member.getLastViewedPath();
+        return member.getLastVisitedPath();
     }
 
     @Transactional
@@ -58,7 +59,7 @@ public class MemberService {
         Member member = memberRepository.findById(memberId)
                 .orElseThrow(() -> new UnauthorizedException(NO_USER_MESSAGE));
 
-        member.setLastViewedPath(lastVisitedPath);
+        member.setLastVisitedPath(lastVisitedPath);
     }
 
     @Transactional(readOnly = true)

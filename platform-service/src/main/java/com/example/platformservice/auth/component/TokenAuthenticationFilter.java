@@ -21,10 +21,10 @@ public class TokenAuthenticationFilter implements Filter {
             new WhiteListRule("/api/v1/login/**", "*"),
             new WhiteListRule("/api/v1/signup/**", "*"),
             new WhiteListRule("/api/v1/oauth/**", "*"),
-            new WhiteListRule("/api/v1/note-info", "GET"),
             new WhiteListRule("/actuator/**", "*"),
             new WhiteListRule("/api/v1/**", "OPTIONS"),
             new WhiteListRule("/api/v1/oauth/refresh", "POST"),
+            new WhiteListRule("/api/v1/workspaces/invitations", "GET"),
             new WhiteListRule("/swagger-ui/**", "*"),
             new WhiteListRule("/v3/api-docs/**", "*")
 

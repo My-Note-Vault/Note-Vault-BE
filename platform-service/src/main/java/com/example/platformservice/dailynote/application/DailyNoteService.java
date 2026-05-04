@@ -16,7 +16,7 @@ import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.Optional;
 
-import static com.example.platformservice.Const.*;
+import static com.example.platformservice.PlatformConst.*;
 
 @RequiredArgsConstructor
 @Service

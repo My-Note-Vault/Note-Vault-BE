@@ -1,6 +1,8 @@
 package com.example.platformservice;
 
-public class Const {
+public class PlatformConst {
+
+    private PlatformConst() { }
 
     public static final String ACCESS_DENIED = "권한이 없습니다!";
 
