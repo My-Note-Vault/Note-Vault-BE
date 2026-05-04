@@ -40,6 +40,7 @@ public class TaskCommandService {
                 .orElseThrow(() -> new NoSuchElementException(CANNOT_FIND_TASK));
 
         task.edit(memberId, title, content, status, startDateTime, endDateTime);
+        taskRepository.save(task);
     }
 
     @Transactional
@@ -48,6 +49,7 @@ public class TaskCommandService {
                 .orElseThrow(() -> new NoSuchElementException(CANNOT_FIND_TASK));
 
         task.updateStatus(memberId, status);
+        taskRepository.save(task);
     }
 
     @Transactional

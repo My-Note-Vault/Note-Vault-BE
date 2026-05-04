@@ -29,6 +29,7 @@ public class TriviaCommandService {
                 .orElseThrow(() -> new NoSuchElementException("DailyNote 를 찾을 수 없습니다"));
 
         trivia.edit(memberId, subTaskId, title, content, isPublic);
+        triviaRepository.save(trivia);
     }
 
     @Transactional
