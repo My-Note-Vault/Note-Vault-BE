@@ -6,7 +6,7 @@ plugins {
 
 group = 'com.example'
 version = '0.0.1-SNAPSHOT'
-description = 'workspace'
+description = 'workspace-service'
 
 java {
 	toolchain {
@@ -21,6 +21,9 @@ repositories {
 dependencies {
 
 	implementation project(":common")
+	implementation project(":platform-api")
+
+	implementation 'org.springframework.boot:spring-boot-starter-websocket'
 
 	compileOnly "org.projectlombok:lombok"
 	annotationProcessor "org.projectlombok:lombok"

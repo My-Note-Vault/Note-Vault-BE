@@ -24,13 +24,12 @@ public class WorkSpaceQueryService {
     private final ParticipantRepository participantRepository;
 
     public WorkSpace findWorkSpaceById(final Long authorId, final Long workSpaceId) {
-        WorkSpace workSpace = workSpaceRepository.findById(workSpaceId)
+        participantRepository.findByWorkSpaceIdAndMemberId(workSpaceId, authorId)
+                .orElseThrow(() -> new NoSuchElementException(NO_PARTICIPANT_MESSAGE));
+
+        return workSpaceRepository.findById(workSpaceId)
                 .orElseThrow(() -> new NoSuchElementException("WorkSpace 를 찾을 수 없습니다"));
 
-        if (!workSpace.getCreatorId().equals(authorId)) {
-            throw new IllegalArgumentException("조회가 허용되지 않았습니다");
-        }
-        return workSpace;
     }
 
     public String findWorkSpaceLastPath(final Long workSpaceId, final Long memberId) {
