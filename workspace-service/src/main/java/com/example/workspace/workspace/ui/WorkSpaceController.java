@@ -2,10 +2,7 @@ package com.example.workspace.workspace.ui;
 
 import com.example.common.AuthMemberId;
 import com.example.workspace.workspace.command.application.WorkSpaceCommandService;
-import com.example.workspace.workspace.command.application.request.CreateWorkSpaceRequest;
-import com.example.workspace.workspace.command.application.request.EditWorkSpaceRequest;
-import com.example.workspace.workspace.command.application.request.UpdateLastVisitedPathRequest;
-import com.example.workspace.workspace.command.application.request.UpdateParticipantsRequest;
+import com.example.workspace.workspace.command.application.request.*;
 import com.example.workspace.workspace.command.domain.WorkSpace;
 import com.example.workspace.workspace.query.WorkSpaceQueryService;
 import com.example.workspace.workspace.query.response.InvitedWorkSpaceSummaryResponse;
@@ -135,10 +132,10 @@ public class WorkSpaceController {
 
     @PostMapping("/invitations/accept")
     public ResponseEntity<Void> acceptInvitation(
-            @RequestBody final String code,
+            @RequestBody final AcceptInvitationRequest request,
             @AuthMemberId final Long memberId
     ) {
-        workSpaceCommandService.acceptInvitation(memberId, code);
+        workSpaceCommandService.acceptInvitation(memberId, request.code());
         return ResponseEntity.noContent().build();
     }
 

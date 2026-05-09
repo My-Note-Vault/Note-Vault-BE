@@ -10,7 +10,6 @@ import java.time.LocalDateTime;
 public class InvitedWorkSpaceSummaryResponse {
 
     private final String workspaceName;
-    private final String inviterName;
     private final LocalDateTime expiresAt;
 
 }

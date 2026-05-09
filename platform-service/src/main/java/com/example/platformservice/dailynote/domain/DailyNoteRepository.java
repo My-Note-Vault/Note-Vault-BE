@@ -10,7 +10,7 @@ import java.util.Optional;
 
 public interface DailyNoteRepository extends JpaRepository<DailyNote, Long> {
 
-    List<DailyNote> findAllByAuthorId(Long authorId);
+    List<DailyNote> findAllByAuthorIdOrderByLogicalDateAsc(Long authorId);
 
     List<DailyNote> findAllByCreatedAt(LocalDateTime createdAt);
 

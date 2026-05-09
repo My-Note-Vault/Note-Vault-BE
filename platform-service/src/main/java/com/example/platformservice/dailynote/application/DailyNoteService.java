@@ -172,7 +172,7 @@ public class DailyNoteService {
 
     @Transactional(readOnly = true)
     public List<DailyNoteSimpleResponse> findAllDailyNotesByAuthorId(final Long authorId) {
-        List<DailyNote> allDailyNotes = dailyNoteRepository.findAllByAuthorId(authorId);
+        List<DailyNote> allDailyNotes = dailyNoteRepository.findAllByAuthorIdOrderByLogicalDateAsc(authorId);
 
         return allDailyNotes.stream()
                 .map(DailyNoteSimpleResponse::from)
