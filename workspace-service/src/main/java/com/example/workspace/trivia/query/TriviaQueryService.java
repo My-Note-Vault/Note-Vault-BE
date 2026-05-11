@@ -23,9 +23,6 @@ public class TriviaQueryService {
         Trivia trivia = triviaRepository.findById(triviaId)
                 .orElseThrow(() -> new NoSuchElementException("DailyNote 를 찾을 수 없습니다"));
 
-        if (!trivia.getAuthorId().equals(authorId)) {
-            throw new IllegalArgumentException("조회가 허용되지 않았습니다");
-        }
         return trivia;
     }
 

@@ -22,13 +22,8 @@ public class TaskQueryService {
             final Long authorId,
             final Long taskId
     ) {
-        Task task = taskRepository.findById(taskId)
+        return taskRepository.findById(taskId)
                 .orElseThrow(() -> new NoSuchElementException("Task 를 찾을 수 없습니다"));
-
-        if (!task.getAuthorId().equals(authorId)) {
-            throw new IllegalArgumentException("조회가 허용되지 않았습니다");
-        }
-        return task;
     }
 
     public List<Task> findAllTasksByAuthorId(final Long authorId) {

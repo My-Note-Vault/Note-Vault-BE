@@ -23,9 +23,6 @@ public class SubTaskQueryService {
         SubTask subTask = subTaskRepository.findById(subTaskId)
                 .orElseThrow(() -> new NoSuchElementException("Task 를 찾을 수 없습니다"));
 
-        if (!subTask.getAuthorId().equals(authorId)) {
-            throw new IllegalArgumentException("조회가 허용되지 않았습니다");
-        }
         return subTask;
     }
 

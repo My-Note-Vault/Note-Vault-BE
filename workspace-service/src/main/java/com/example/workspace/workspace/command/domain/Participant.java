@@ -11,7 +11,8 @@ import lombok.Setter;
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @Table(
         name = "workspace_member",
-        indexes = @Index(columnList = "workspace_id")
+        indexes = @Index(columnList = "workspace_id"),
+        uniqueConstraints = @UniqueConstraint(columnNames = {"workspace_id", "member_id"})
 )
 @Entity
 public class Participant {

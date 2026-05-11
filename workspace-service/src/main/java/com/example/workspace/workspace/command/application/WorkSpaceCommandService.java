@@ -3,6 +3,7 @@ package com.example.workspace.workspace.command.application;
 import com.example.workspace.common.WorkspaceConst;
 import com.example.workspace.workspace.command.domain.*;
 import lombok.RequiredArgsConstructor;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -125,6 +126,10 @@ public class WorkSpaceCommandService {
         }
 
         Participant participant = new Participant(invitation.getWorkSpaceId(), memberId);
-        participantRepository.save(participant);
+        try {
+            participantRepository.save(participant);
+        } catch (DataIntegrityViolationException e) {
+            throw new AlreadyInWorkSpaceException(e.getMessage());
+        }
     }
 }

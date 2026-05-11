@@ -26,8 +26,8 @@ public class TokenAuthenticationFilter implements Filter {
             new WhiteListRule("/api/v1/oauth/refresh", "POST"),
             new WhiteListRule("/api/v1/workspaces/invitations", "GET"),
             new WhiteListRule("/swagger-ui/**", "*"),
-            new WhiteListRule("/v3/api-docs/**", "*")
-
+            new WhiteListRule("/v3/api-docs/**", "*"),
+            new WhiteListRule("/ws/**", "*")
     );
 
     public TokenAuthenticationFilter(JwtService jwtService) {
