@@ -22,6 +22,7 @@ public class SessionRegistry {
     private final Map<SessionKey, Set<WebSocketSession>> rooms = new ConcurrentHashMap<>();
 
     public void add(SessionKey key, WebSocketSession session) {
+        log.info("SessionRegistry add documentType={}, documentId={}, sessionId={}", key.documentType(), key.documentId(), session.getId());
         rooms.computeIfAbsent(key, k -> ConcurrentHashMap.newKeySet())
                 .add(wrapIfNeeded(session));
     }
@@ -41,9 +42,11 @@ public class SessionRegistry {
 
 
     public void broadcast(String documentType, Long documentId, String senderSessionId, byte[] payload) {
+        log.info("SessionRegistry broadcast documentType={}, documentId={}, senderSessionId={}, payloadSize={}", documentType, documentId, senderSessionId, payload.length);
         SessionKey key = new SessionKey(documentType, documentId);
 
         for (WebSocketSession session : rooms.getOrDefault(key, Set.of())) {
+            log.info("SessionRegistry broadcast Room!!! documentType={}, documentId={}, senderSessionId={}, sessionId={}", documentType, documentId, senderSessionId, session.getId());
             boolean isClosedOrSenderMySelf = !session.isOpen() || session.getId().equals(senderSessionId);
 
             if (isClosedOrSenderMySelf) {
