@@ -18,6 +18,8 @@ import java.util.Objects;
 @Entity
 public class Trivia extends Auditable {
 
+    private static final String DEFAULT_TITLE = "새 Trivia";
+
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
@@ -36,15 +38,16 @@ public class Trivia extends Auditable {
     private Boolean isPublic;
 
 
-    public Trivia(
-            final Long authorId,
-            final Long subTaskId
-    ) {
+    public Trivia(final Long authorId, final Long subTaskId) {
+        this(authorId, subTaskId, DEFAULT_TITLE, "", false);
+    }
+
+    public Trivia(final Long authorId, final Long subTaskId, final String title, final String content, final Boolean isPublic) {
         this.authorId = authorId;
         this.subTaskId = subTaskId;
-
-        this.isPublic = Objects.requireNonNullElse(isPublic, false);
-
+        this.title = title;
+        this.content = content;
+        this.isPublic = isPublic;
     }
 
     public void edit(

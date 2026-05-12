@@ -17,24 +17,8 @@ public class SubTaskCommandService {
     private final SubTaskRepository subTaskRepository;
 
     @Transactional
-    public Long createSubTask(
-            final Long memberId,
-            final Long taskId,
-            final LocalDateTime startDateTime,
-            final LocalDateTime endDateTime,
-            final Status status,
-            final String title,
-            final String content
-    ) {
-        SubTask subTask = new SubTask(
-                memberId,
-                taskId,
-                startDateTime,
-                endDateTime,
-                status,
-                title,
-                content
-        );
+    public Long createSubTask(final Long memberId, final Long taskId) {
+        SubTask subTask = new SubTask(memberId, taskId);
         subTaskRepository.save(subTask);
 
         return subTask.getId();
@@ -49,12 +33,13 @@ public class SubTaskCommandService {
             final String content,
             final Status status,
             final LocalDateTime startDateTime,
-            final LocalDateTime endDateTime
+            final LocalDateTime endDateTime,
+            final Boolean isPublic
     ) {
         SubTask subTask = subTaskRepository.findById(subTaskId)
                 .orElseThrow(() -> new NoSuchElementException("Task 를 찾을 수 없습니다"));
 
-        subTask.edit(memberId, title, content, status, startDateTime, endDateTime);
+        subTask.edit(memberId, title, content, status, startDateTime, endDateTime, isPublic);
         subTaskRepository.save(subTask);
     }
 

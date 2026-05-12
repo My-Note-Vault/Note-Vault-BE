@@ -14,11 +14,4 @@ public class CreateSubTaskRequest {
     @NotBlank
     private final Long taskId;
 
-    private final LocalDateTime startDateTime;
-    private final LocalDateTime endDateTime;
-
-    private final Status status;
-    @NotBlank
-    private final String title;
-    private final String content;
 }

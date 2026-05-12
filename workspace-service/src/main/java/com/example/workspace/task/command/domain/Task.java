@@ -41,9 +41,11 @@ public class Task extends Auditable {
     @Column(columnDefinition = "MEDIUMTEXT")
     private String content;
 
+    private Boolean isPublic;
+
 
     public Task(final Long workSpaceId, final Long authorId) {
-        this(workSpaceId, authorId, Status.NOT_STARTED, LocalDateTime.now(), LocalDateTime.now(), DEFAULT_TITLE, DEFAULT_CONTENT);
+        this(workSpaceId, authorId, Status.NOT_STARTED, LocalDateTime.now(), LocalDateTime.now(), DEFAULT_TITLE, DEFAULT_CONTENT, false);
     }
 
     public Task(
@@ -53,13 +55,15 @@ public class Task extends Auditable {
             final LocalDateTime startDateTime,
             final LocalDateTime endDateTime,
             final String title,
-            final String content
+            final String content,
+            final Boolean isPublic
     ) {
         this.workSpaceId = workSpaceId;
         this.authorId = authorId;
         this.schedule = new Schedule(status, startDateTime, endDateTime);
         this.title = title;
         this.content = content;
+        this.isPublic = isPublic;
     }
 
     public void edit(
@@ -69,7 +73,9 @@ public class Task extends Auditable {
 
             final Status status,
             final LocalDateTime startDate,
-            final LocalDateTime endDate
+            final LocalDateTime endDate,
+
+            final Boolean isPublic
     ) {
         if (!this.authorId.equals(authorId)) {
             throw new IllegalArgumentException("자신의 노트가 아닙니다!");
@@ -78,9 +84,10 @@ public class Task extends Auditable {
         this.content = content == null ? this.content : content;
 
         this.schedule.edit(status, startDate, endDate);
+        this.isPublic = isPublic == null ? this.isPublic : isPublic;
     }
 
     public void updateStatus(final Long authorId, final Status status) {
-        this.edit(authorId, null, null, status, null, null);
+        this.edit(authorId, null, null, status, null, null, null);
     }
 }

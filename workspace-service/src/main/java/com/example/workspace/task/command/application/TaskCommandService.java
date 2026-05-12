@@ -34,12 +34,13 @@ public class TaskCommandService {
             final String content,
             final Status status,
             final LocalDateTime startDateTime,
-            final LocalDateTime endDateTime
+            final LocalDateTime endDateTime,
+            final Boolean isPublic
     ) {
         Task task = taskRepository.findById(taskId)
                 .orElseThrow(() -> new NoSuchElementException(CANNOT_FIND_TASK));
 
-        task.edit(memberId, title, content, status, startDateTime, endDateTime);
+        task.edit(memberId, title, content, status, startDateTime, endDateTime, isPublic);
         taskRepository.save(task);
     }
 

@@ -20,6 +20,8 @@ import java.util.NoSuchElementException;
 @Entity
 public class SubTask extends Auditable {
 
+    private static final String DEFAULT_TITLE = "새 SubTask";
+
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
@@ -38,6 +40,11 @@ public class SubTask extends Auditable {
     @Column(columnDefinition = "MEDIUMTEXT")
     private String content;
 
+    private Boolean isPublic;
+
+    public SubTask(final Long authorId, final Long taskId) {
+        this(authorId, taskId, null, null, Status.NOT_STARTED, DEFAULT_TITLE, "", false);
+    }
 
     public SubTask(
             final Long authorId,
@@ -46,14 +53,15 @@ public class SubTask extends Auditable {
             final LocalDateTime endDateTime,
             final Status status,
             final String title,
-            final String content
+            final String content,
+            final Boolean isPublic
     ) {
         this.authorId = authorId;
         this.taskId = taskId;
         this.schedule = new Schedule(status, startDateTime, endDateTime);
         this.title = title;
         this.content = content;
-
+        this.isPublic = isPublic;
     }
 
     public void edit(
@@ -62,7 +70,8 @@ public class SubTask extends Auditable {
             final String content,
             final Status status,
             final LocalDateTime startDateTime,
-            final LocalDateTime endDateTime
+            final LocalDateTime endDateTime,
+            final Boolean isPublic
     ) {
         if (!this.authorId.equals(authorId)) {
             throw new NoSuchElementException("자신의 노트가 아닙니다!");
@@ -70,6 +79,7 @@ public class SubTask extends Auditable {
         this.title = title == null ? this.title : title;
         this.content = content == null ? this.content : content;
         this.schedule.edit(status, startDateTime, endDateTime);
+        this.isPublic = isPublic == null ? this.isPublic : isPublic;
     }
 
 

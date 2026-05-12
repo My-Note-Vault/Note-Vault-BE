@@ -58,7 +58,8 @@ public class TaskController {
                 request.getContent(),
                 request.getStatus(),
                 request.getStartDateTime(),
-                request.getEndDateTime()
+                request.getEndDateTime(),
+                request.getIsPublic()
         );
         return ResponseEntity.noContent().build();
     }

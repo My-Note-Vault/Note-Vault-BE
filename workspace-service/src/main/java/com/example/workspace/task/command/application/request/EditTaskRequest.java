@@ -21,4 +21,5 @@ public class EditTaskRequest {
     private final LocalDateTime startDateTime;
     private final LocalDateTime endDateTime;
 
+    private final Boolean isPublic;
 }
