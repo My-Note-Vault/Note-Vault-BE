@@ -1,17 +1,17 @@
 package com.example.workspace.calendar.service;
 
 import com.example.workspace.calendar.infra.CalendarJdbcRepository;
-import com.example.workspace.calendar.ui.response.ScheduleResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
 import java.util.ArrayList;
-import java.util.Comparator;
+import java.util.EnumMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.stream.Collectors;
+import java.util.TreeMap;
 
 @RequiredArgsConstructor
 @Service
@@ -20,7 +20,7 @@ public class CalendarService {
     private final CalendarJdbcRepository calendarJdbcRepository;
 
     @Transactional(readOnly = true)
-    public List<ScheduleResponse> findMonthlySchedulesByMemberId(final Long memberId, final int year, final int month) {
+    public Map<LocalDate, Map<DailyEventRow.EventType, Integer>> findMonthlySchedulesByMemberId(final Long memberId, final int year, final int month) {
         LocalDate from = LocalDate.of(year, month, 1);
         LocalDate to = LocalDate.of(year, month, 1).plusMonths(1);
 
@@ -30,25 +30,12 @@ public class CalendarService {
         List<DailyEventRow> allSchedules = new ArrayList<>(monthlyTaskSchedulesByMember);
         allSchedules.addAll(monthlySubTaskSchedulesByMember);
 
-        Map<LocalDate, ScheduleResponse> map =
-                allSchedules.stream().collect(Collectors.toMap(
-                        DailyEventRow::getDate,
+        Map<LocalDate, Map<DailyEventRow.EventType, Integer>> schedulesByDate = new TreeMap<>();
+        for (DailyEventRow schedule : allSchedules) {
+            schedulesByDate.computeIfAbsent(schedule.getDate(), ignored -> new EnumMap<>(DailyEventRow.EventType.class))
+                    .merge(schedule.getType(), schedule.getCount(), Integer::sum);
+        }
 
-                        r -> new ScheduleResponse(
-                                r.getDate(),
-                                r.getStatus() == DailyEventRow.EventStatus.OPEN ? r.getCount() : 0,
-                                r.getStatus() == DailyEventRow.EventStatus.CLOSED   ? r.getCount() : 0
-                        ),
-
-                        (a, b) -> new ScheduleResponse(
-                                a.getDate(),
-                                a.getStartCount() + b.getStartCount(),
-                                a.getEndCount() + b.getEndCount()
-                        )
-                ));
-
-        return map.values().stream()
-                .sorted(Comparator.comparing(ScheduleResponse::getDate))
-                .toList();
+        return new LinkedHashMap<>(schedulesByDate);
     }
 }

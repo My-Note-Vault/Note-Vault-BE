@@ -1,7 +1,6 @@
 package com.example.workspace.calendar.infra;
 
 import com.example.workspace.calendar.service.DailyEventRow;
-import com.example.workspace.task.command.domain.value.Status;
 import lombok.RequiredArgsConstructor;
 import org.springframework.jdbc.core.RowMapper;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
@@ -21,23 +20,27 @@ public class CalendarJdbcRepositoryImpl implements CalendarJdbcRepository {
     public List<DailyEventRow> findMonthlyTaskSchedulesByMember(Long memberId, LocalDate from, LocalDate to) {
 
         String sql = """
-                SELECT t.start_date_time, t.status, COUNT(*) AS count FROM task t
+                SELECT 'START' AS type, DATE(t.start_date_time) AS schedule_date, COUNT(*) AS count FROM task t
                 WHERE t.author_id = :memberId
                 AND t.start_date_time >= :from
                 AND t.start_date_time < :to
-                GROUP BY t.start_date_time,  t.status
+                AND t.status != 'COMPLETED'
+                GROUP BY schedule_date
+                
+                UNION ALL
+                
+                SELECT 'END' AS type, DATE(t.end_date_time) AS schedule_date, COUNT(*) AS count FROM task t
+                WHERE t.author_id = :memberId
+                AND t.end_date_time >= :from
+                AND t.end_date_time < :to
+                AND t.status != 'COMPLETED'
+                GROUP BY schedule_date
                 """;
 
         RowMapper<DailyEventRow> mapper = (rs, rowNum) -> {
-            Status status = Status.valueOf(rs.getString("t.status"));
-
-            DailyEventRow.EventStatus eventStatus = status.equals(Status.COMPLETED)
-                    ? DailyEventRow.EventStatus.CLOSED
-                    : DailyEventRow.EventStatus.OPEN;
-
             return new DailyEventRow(
-                    rs.getObject("t.start_date_time", LocalDate.class),
-                    eventStatus,
+                    DailyEventRow.EventType.valueOf(rs.getString("type")),
+                    rs.getObject("schedule_date", LocalDate.class),
                     rs.getInt("count")
             );
         };
@@ -52,24 +55,37 @@ public class CalendarJdbcRepositoryImpl implements CalendarJdbcRepository {
     @Override
     public List<DailyEventRow> findMonthlySubTaskSchedulesByMember(Long memberId, LocalDate from, LocalDate to) {
 
+
         String sql = """
-                SELECT st.start_date_time , st.status, COUNT(*) AS count FROM subtask st
+                SELECT 'START' AS type, DATE(st.start_date_time) AS schedule_date, COUNT(*) AS count FROM subtask st
                 WHERE st.author_id = :memberId
                 AND st.start_date_time >= :from
                 AND st.start_date_time < :to
-                GROUP BY st.start_date_time, st.status
+                AND st.status != 'COMPLETED'
+                GROUP BY schedule_date
+                
+                UNION ALL
+                
+                SELECT 'END' AS type, DATE(st.end_date_time) AS schedule_date, COUNT(*) AS count FROM subtask st
+                WHERE st.author_id = :memberId
+                AND st.end_date_time >= :from
+                AND st.end_date_time < :to
+                AND st.status != 'COMPLETED'
+                GROUP BY schedule_date
                 """;
 
+//        String sql = """
+//                SELECT st.start_date_time , st.status, COUNT(*) AS count FROM subtask st
+//                WHERE st.author_id = :memberId
+//                AND st.start_date_time >= :from
+//                AND st.start_date_time < :to
+//                GROUP BY st.start_date_time, st.status
+//                """;
+
         RowMapper<DailyEventRow> mapper = (rs, rowNum) -> {
-            Status status = Status.valueOf(rs.getString("st.status"));
-
-            DailyEventRow.EventStatus eventStatus = status.equals(Status.COMPLETED)
-                    ? DailyEventRow.EventStatus.CLOSED
-                    : DailyEventRow.EventStatus.OPEN;
-
             return new DailyEventRow(
-                    rs.getObject("st.start_date_time", LocalDate.class),
-                    eventStatus,
+                    DailyEventRow.EventType.valueOf(rs.getString("type")),
+                    rs.getObject("schedule_date", LocalDate.class),
                     rs.getInt("count")
             );
         };

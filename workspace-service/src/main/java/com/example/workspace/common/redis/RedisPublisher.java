@@ -38,13 +38,6 @@ public class RedisPublisher {
 
             String json = objectMapper.writeValueAsString(message);
             redisTemplate.convertAndSend(CollaborationChannel.documentChannel(documentType, documentId), json);
-
-            log.info(
-                    "REDIS_PUBLISH channel={}, payloadSize={}, server={}",
-                    CollaborationChannel.documentChannel(documentType, documentId),
-                    payload.length,
-                    InetAddress.getLocalHost().getHostName()
-            );
         } catch (JsonProcessingException e) {
             throw new IllegalStateException("Failed to publish Yjs collaboration message", e);
         }

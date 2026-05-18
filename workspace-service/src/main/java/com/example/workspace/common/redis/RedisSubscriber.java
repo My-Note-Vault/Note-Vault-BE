@@ -36,17 +36,6 @@ public class RedisSubscriber implements MessageListener {
                     redisMessage.senderSessionId(),
                     payload
             );
-
-            String channel = new String(
-                    message.getChannel(),
-                    StandardCharsets.UTF_8
-            );
-            log.info(
-                    "REDIS_SUBSCRIBE channel={}, bodySize={}, server={}",
-                    channel,
-                    message.getBody().length,
-                    InetAddress.getLocalHost().getHostName()
-            );
         } catch (Exception e) {
             log.error("Failed to consume Yjs collaboration message from Redis", e);
         }

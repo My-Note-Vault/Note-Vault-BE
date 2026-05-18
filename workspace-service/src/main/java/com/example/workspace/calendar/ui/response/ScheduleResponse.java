@@ -1,5 +1,6 @@
 package com.example.workspace.calendar.ui.response;
 
+import com.example.workspace.calendar.service.DailyEventRow;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 
@@ -9,7 +10,7 @@ import java.time.LocalDate;
 @RequiredArgsConstructor
 public class ScheduleResponse {
 
+    private final DailyEventRow.EventType type;
     private final LocalDate date;
-    private final int startCount;
-    private final int endCount;
+    private final int count;
 }

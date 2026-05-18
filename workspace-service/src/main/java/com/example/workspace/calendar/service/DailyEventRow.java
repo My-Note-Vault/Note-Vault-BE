@@ -9,11 +9,11 @@ import java.time.LocalDate;
 @RequiredArgsConstructor
 public class DailyEventRow {
 
+    private final EventType type;
     private final LocalDate date;
-    private final EventStatus status;
     private final int count;
 
-    public enum EventStatus {
-        OPEN, CLOSED
+    public enum EventType {
+        START, END
     }
 }
