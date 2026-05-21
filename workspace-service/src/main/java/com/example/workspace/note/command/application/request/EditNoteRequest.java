@@ -1,4 +1,4 @@
-package com.example.workspace.trivia.command.application.request;
+package com.example.workspace.note.command.application.request;
 
 import jakarta.validation.constraints.NotBlank;
 import lombok.Getter;
@@ -6,10 +6,10 @@ import lombok.RequiredArgsConstructor;
 
 @Getter
 @RequiredArgsConstructor
-public class EditTriviaRequest {
+public class EditNoteRequest {
 
     @NotBlank
-    private final Long triviaId;
+    private final Long noteId;
     @NotBlank
     private final Long parentTaskId;
     @NotBlank

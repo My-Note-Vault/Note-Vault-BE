@@ -23,6 +23,6 @@ public class Note implements Serializable {
     private Long noteId;
 
     public enum NoteType {
-        BOARD, CALENDAR, DAILY_NOTE, SPACE, TASK, SUBTASK, TRIVIA
+        BOARD, CALENDAR, DAILY_NOTE, SPACE, TASK, SUBTASK, NOTE
     }
 }

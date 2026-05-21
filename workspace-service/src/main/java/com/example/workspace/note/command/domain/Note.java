@@ -1,4 +1,4 @@
-package com.example.workspace.trivia.command.domain;
+package com.example.workspace.note.command.domain;
 
 import com.example.common.Auditable;
 import jakarta.persistence.*;
@@ -12,13 +12,13 @@ import java.util.Objects;
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @Table(
-        name = "trivia",
+        name = "note",
         indexes = @Index(columnList = "author_id")
 )
 @Entity
-public class Trivia extends Auditable {
+public class Note extends Auditable {
 
-    private static final String DEFAULT_TITLE = "새 Trivia";
+    private static final String DEFAULT_TITLE = "새 Note";
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -38,11 +38,11 @@ public class Trivia extends Auditable {
     private Boolean isPublic;
 
 
-    public Trivia(final Long authorId, final Long subTaskId) {
+    public Note(final Long authorId, final Long subTaskId) {
         this(authorId, subTaskId, DEFAULT_TITLE, "", false);
     }
 
-    public Trivia(final Long authorId, final Long subTaskId, final String title, final String content, final Boolean isPublic) {
+    public Note(final Long authorId, final Long subTaskId, final String title, final String content, final Boolean isPublic) {
         this.authorId = authorId;
         this.subTaskId = subTaskId;
         this.title = title;

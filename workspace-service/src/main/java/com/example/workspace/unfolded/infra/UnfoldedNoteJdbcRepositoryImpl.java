@@ -28,11 +28,11 @@ public class UnfoldedNoteJdbcRepositoryImpl implements UnfoldedNoteJdbcRepositor
             t.title AS task_title,
             s.id AS subtask_id,
             s.title AS subtask_title,
-            tr.id AS trivia_id,
-            tr.title AS trivia_title
+            tr.id AS note_id,
+            tr.title AS note_title
         FROM task t
         LEFT JOIN subtask s ON s.task_id = t.id
-        LEFT JOIN trivia tr ON tr.subtask_id = s.id
+        LEFT JOIN note tr ON tr.subtask_id = s.id
         WHERE t.workspace_id = :workspaceId
         ORDER BY t.created_at, s.id, tr.id
         """;
@@ -68,15 +68,15 @@ public class UnfoldedNoteJdbcRepositoryImpl implements UnfoldedNoteJdbcRepositor
                             return created;
                         });
 
-                Long triviaId = (Long) rs.getObject("trivia_id");
-                if (triviaId == null) continue;
+                Long noteId = (Long) rs.getObject("note_id");
+                if (noteId == null) continue;
 
-                String triviaTitle = rs.getString("trivia_title");
+                String noteTitle = rs.getString("note_title");
 
-                subTask.triviaSummaries().add(
-                        new TaskOverviewResponse.SubTaskSummary.TriviaSummary(
-                                triviaId,
-                                triviaTitle
+                subTask.noteSummaries().add(
+                        new TaskOverviewResponse.SubTaskSummary.NoteSummary(
+                                noteId,
+                                noteTitle
                         )
                 );
             }

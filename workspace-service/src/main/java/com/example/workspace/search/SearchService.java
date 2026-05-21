@@ -42,7 +42,7 @@ public class SearchService {
                 })
                 .toList();
 
-        List<NoteGroup.Note> trivia = notesOwnedByMember.trivia().stream()
+        List<NoteGroup.Note> note = notesOwnedByMember.note().stream()
                 .filter(s -> !s.content().contains(targetWord))
                 .map(s -> {
                     String extractedContent = findTargetContent(s.content(), targetWord);
@@ -50,7 +50,7 @@ public class SearchService {
                 })
                 .toList();
 
-        return new NoteGroup(spaces, tasks, subTasks, trivia);
+        return new NoteGroup(spaces, tasks, subTasks, note);
     }
 
     private String findTargetContent(final String content, final String targetWord) {

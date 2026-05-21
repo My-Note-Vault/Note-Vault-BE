@@ -32,9 +32,9 @@ public class SearchRepository {
         ORDER BY status DESC, id DESC
     """;
 
-        String searchTriviaQuery = """
+        String searchNoteQuery = """
         SELECT id, title
-        FROM trivia
+        FROM note
         WHERE author_id = ?
         ORDER BY status DESC, id DESC
     """;
@@ -69,8 +69,8 @@ public class SearchRepository {
                 memberId
         );
 
-        var trivia = jdbcTemplate.query(
-                searchTriviaQuery,
+        var note = jdbcTemplate.query(
+                searchNoteQuery,
                 (rs, rowNum) -> new NoteGroup.Note(
                         rs.getLong("id"),
                         rs.getString("title"),
@@ -79,6 +79,6 @@ public class SearchRepository {
                 memberId
         );
 
-        return new NoteGroup(workSpaces, tasks, subTasks, trivia);
+        return new NoteGroup(workSpaces, tasks, subTasks, note);
     }
 }

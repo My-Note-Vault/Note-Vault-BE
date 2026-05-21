@@ -58,10 +58,10 @@ public class SwaggerConfig {
     }
 
     @Bean
-    public GroupedOpenApi triviaApi() {
+    public GroupedOpenApi noteApi() {
         return GroupedOpenApi.builder()
-                .group("trivia")
-                .pathsToMatch("/api/v1/trivia/**")
+                .group("note")
+                .pathsToMatch("/api/v1/note/**")
                 .build();
     }
 

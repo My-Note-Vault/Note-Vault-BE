@@ -11,10 +11,10 @@ public record TaskOverviewResponse(
     public record SubTaskSummary(
             Long id,
             String title,
-            List<TriviaSummary> triviaSummaries
+            List<NoteSummary> noteSummaries
     ) {
 
-        public record TriviaSummary(
+        public record NoteSummary(
                 Long id,
                 String title
         ) {

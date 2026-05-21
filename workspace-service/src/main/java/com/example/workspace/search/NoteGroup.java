@@ -7,7 +7,7 @@ public record NoteGroup(
         List<Note> spaces,
         List<Note> tasks,
         List<Note> subTasks,
-        List<Note> trivia
+        List<Note> note
 
 ) {
     public record Note(Long id, String title, String content) {}
