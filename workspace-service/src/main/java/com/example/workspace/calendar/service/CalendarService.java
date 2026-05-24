@@ -1,6 +1,7 @@
 package com.example.workspace.calendar.service;
 
 import com.example.workspace.calendar.infra.CalendarJdbcRepository;
+import com.example.workspace.calendar.ui.response.DateEventResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -37,5 +38,17 @@ public class CalendarService {
         }
 
         return new LinkedHashMap<>(schedulesByDate);
+    }
+
+    @Transactional(readOnly = true)
+    public List<DateEventResponse> findAllDateEvents(final Long memberId, final LocalDate date) {
+        List<DateEventResponse> tasksByDate = calendarJdbcRepository.findTasksByDate(memberId, date);
+        List<DateEventResponse> subTasksByDate = calendarJdbcRepository.findSubTasksByDate(memberId, date);
+
+        List<DateEventResponse> allEvents = new ArrayList<>();
+        allEvents.addAll(tasksByDate);
+        allEvents.addAll(subTasksByDate);
+
+        return allEvents;
     }
 }

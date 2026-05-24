@@ -1,8 +1,10 @@
 package com.example.workspace.calendar.infra;
 
 import com.example.workspace.calendar.service.DailyEventRow;
+import com.example.workspace.calendar.ui.response.DateEventResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.jdbc.core.RowMapper;
+import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Repository;
 
@@ -74,14 +76,6 @@ public class CalendarJdbcRepositoryImpl implements CalendarJdbcRepository {
                 GROUP BY schedule_date
                 """;
 
-//        String sql = """
-//                SELECT st.start_date_time , st.status, COUNT(*) AS count FROM subtask st
-//                WHERE st.author_id = :memberId
-//                AND st.start_date_time >= :from
-//                AND st.start_date_time < :to
-//                GROUP BY st.start_date_time, st.status
-//                """;
-
         RowMapper<DailyEventRow> mapper = (rs, rowNum) -> {
             return new DailyEventRow(
                     DailyEventRow.EventType.valueOf(rs.getString("type")),
@@ -96,6 +90,90 @@ public class CalendarJdbcRepositoryImpl implements CalendarJdbcRepository {
                 "to", to
         );
         return namedJdbcTemplate.query(sql, params, mapper);
+    }
+
+    @Override
+    public List<DateEventResponse> findTasksByDate(Long memberId, LocalDate targetDate) {
+        String sql = """
+        SELECT
+            t.id,
+            t.title,
+            t.status,
+            DATE(t.start_date_time) AS start_date,
+            DATE(t.end_date_time) AS end_date
+        FROM task t
+        WHERE (
+            DATE(t.start_date_time) = :targetDate OR
+            DATE(t.end_date_time) = :targetDate
+        )
+        AND t.author_id = :memberId
+        """;
+
+        MapSqlParameterSource params = new MapSqlParameterSource()
+                .addValue("targetDate", targetDate)
+                .addValue("memberId", memberId);
+
+        return namedJdbcTemplate.query(
+                sql,
+                params,
+                (rs, rowNum) -> new DateEventResponse(
+                        "TASK",
+                        rs.getLong("id"),
+                        rs.getString("title"),
+                        rs.getString("status"),
+                        rs.getObject("start_date", LocalDate.class),
+                        rs.getObject("end_date", LocalDate.class),
+                        null
+                )
+        );
+    }
+
+    @Override
+    public List<DateEventResponse> findSubTasksByDate(Long memberId, LocalDate targetDate) {
+        String sql = """
+        SELECT
+            st.id,
+            st.title,
+            st.status,
+            DATE(st.start_date_time) AS start_date,
+            DATE(st.end_date_time) AS end_date,
+            t.id AS parent_task_id,
+            t.title AS parent_task_title,
+            t.status AS parent_task_status,
+            DATE(t.start_date_time) AS parent_task_start_date,
+            DATE(t.end_date_time) AS parent_task_end_date
+        FROM subtask st
+        JOIN task t ON t.id = st.task_id
+        WHERE (
+            DATE(st.start_date_time) = :targetDate OR
+            DATE(st.end_date_time) = :targetDate
+        )
+        AND st.author_id = :memberId
+        """;
+
+        MapSqlParameterSource params = new MapSqlParameterSource()
+                .addValue("targetDate", targetDate)
+                .addValue("memberId", memberId);
+
+        return namedJdbcTemplate.query(
+                sql,
+                params,
+                (rs, rowNum) -> new DateEventResponse(
+                        "SUBTASK",
+                        rs.getLong("id"),
+                        rs.getString("title"),
+                        rs.getString("status"),
+                        rs.getObject("start_date", LocalDate.class),
+                        rs.getObject("end_date", LocalDate.class),
+                        new DateEventResponse.Parent(
+                                rs.getLong("parent_task_id"),
+                                rs.getString("parent_task_title"),
+                                rs.getString("parent_task_status"),
+                                rs.getObject("parent_task_start_date", LocalDate.class),
+                                rs.getObject("parent_task_end_date", LocalDate.class)
+                        )
+                )
+        );
     }
 
 }

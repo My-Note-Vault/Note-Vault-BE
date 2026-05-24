@@ -1,6 +1,7 @@
 package com.example.workspace.calendar.infra;
 
 import com.example.workspace.calendar.service.DailyEventRow;
+import com.example.workspace.calendar.ui.response.DateEventResponse;
 
 import java.time.LocalDate;
 import java.util.List;
@@ -10,4 +11,8 @@ public interface CalendarJdbcRepository {
     List<DailyEventRow> findMonthlyTaskSchedulesByMember(Long memberId, LocalDate from, LocalDate to);
 
     List<DailyEventRow> findMonthlySubTaskSchedulesByMember(Long memberId, LocalDate from, LocalDate to);
+
+    List<DateEventResponse> findTasksByDate(Long memberId, LocalDate targetDate);
+
+    List<DateEventResponse> findSubTasksByDate(Long memberId, LocalDate targetDate);
 }
