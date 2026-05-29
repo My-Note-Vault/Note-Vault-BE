@@ -14,11 +14,11 @@ public class SearchController {
     private final SearchService searchService;
 
     @PostMapping
-    public ResponseEntity<NoteGroup> searchAllNotes(
+    public ResponseEntity<SearchResponse> searchAllNotes(
             @RequestBody final SearchNoteRequest request,
             @AuthMemberId final Long memberId
     ) {
-        NoteGroup searchResults = searchService.searchAllNotes(memberId, request.targetWord());
+        SearchResponse searchResults = searchService.searchAllNotes(memberId, request.targetWord());
         return ResponseEntity.ok(searchResults);
     }
 }
