@@ -1,0 +1,12 @@
+package com.example.common.file.image;
+
+import lombok.Getter;
+import lombok.RequiredArgsConstructor;
+
+@Getter
+@RequiredArgsConstructor
+public class ContentImageUrlResponse {
+
+    private final String presignedUrl;
+    private final String key;
+}

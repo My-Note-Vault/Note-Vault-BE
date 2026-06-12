@@ -90,8 +90,7 @@ public class MemberService {
 
     @Transactional(readOnly = true)
     public ProfileImageResponse getProfileImage(final Long memberId) {
-        Member member = findMember(memberId);
-        String profileImageKey = member.getProfileImageKey();
+        String profileImageKey = getProfileImageKey(memberId);
 
         if (profileImageKey == null || profileImageKey.isBlank()) {
             return new ProfileImageResponse("", "");
@@ -101,6 +100,12 @@ public class MemberService {
                 imageUtils.generatePresignedGetUrl(profileImageKey),
                 profileImageKey
         );
+    }
+
+    @Transactional(readOnly = true)
+    public String getProfileImageKey(final Long memberId) {
+        Member member = findMember(memberId);
+        return member.getProfileImageKey();
     }
 
     @Transactional

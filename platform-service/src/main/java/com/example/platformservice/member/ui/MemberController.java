@@ -1,10 +1,13 @@
 package com.example.platformservice.member.ui;
 
 import com.example.common.AuthMemberId;
+import com.example.common.file.cloudfront.CloudFrontCookieService;
+import com.example.common.file.cloudfront.CloudFrontSignedCookie;
 import com.example.platformservice.member.application.MemberService;
 import com.example.platformservice.member.ui.dto.*;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -14,6 +17,7 @@ import org.springframework.web.bind.annotation.*;
 public class MemberController {
 
     private final MemberService memberService;
+    private final CloudFrontCookieService cloudFrontCookieService;
 
     @GetMapping("/last-visited-path")
     public ResponseEntity<String> getLastVisitedPath(@AuthMemberId final Long memberId) {
@@ -57,8 +61,25 @@ public class MemberController {
 
     @GetMapping("/profile-image")
     public ResponseEntity<ProfileImageResponse> getProfileImage(@AuthMemberId final Long memberId) {
-        ProfileImageResponse response = memberService.getProfileImage(memberId);
-        return ResponseEntity.ok(response);
+        String profileImageKey = memberService.getProfileImageKey(memberId);
+        if (profileImageKey == null || profileImageKey.isBlank()) {
+            return ResponseEntity.ok(new ProfileImageResponse("", ""));
+        }
+
+        if (cloudFrontCookieService.isEnabled()) {
+            CloudFrontSignedCookie signedCookie = cloudFrontCookieService.createSignedCookie(profileImageKey);
+
+            ResponseEntity.BodyBuilder response = ResponseEntity.ok();
+            signedCookie.getCookies()
+                    .forEach(cookie -> response.header(HttpHeaders.SET_COOKIE, cookie.toString()));
+
+            return response.body(new ProfileImageResponse(
+                    signedCookie.getImageUrl(),
+                    profileImageKey
+            ));
+        }
+
+        return ResponseEntity.ok(memberService.getProfileImage(memberId));
     }
 
     @PatchMapping("/profile-image")

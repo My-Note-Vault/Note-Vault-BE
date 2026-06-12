@@ -1,5 +1,6 @@
 package com.example.workspace.task.command.application;
 
+import com.example.common.file.image.ImageUtils;
 import com.example.workspace.task.command.domain.Task;
 import com.example.workspace.task.command.domain.TaskRepository;
 import com.example.workspace.task.command.domain.value.Status;
@@ -17,6 +18,7 @@ import static com.example.common.CommonConstant.CANNOT_FIND_TASK;
 public class TaskCommandService {
 
     private final TaskRepository taskRepository;
+    private final ImageUtils imageUtils;
 
     @Transactional
     public Long createTask(final Long workSpaceId, final Long authorId) {
@@ -40,7 +42,9 @@ public class TaskCommandService {
         Task task = taskRepository.findById(taskId)
                 .orElseThrow(() -> new NoSuchElementException(CANNOT_FIND_TASK));
 
+        String oldContent = task.getContent();
         task.edit(memberId, title, content, status, startDateTime, endDateTime, isPublic);
+        imageUtils.deleteRemovedContentImages(oldContent, content);
         taskRepository.save(task);
     }
 
@@ -61,6 +65,7 @@ public class TaskCommandService {
         if (!task.getAuthorId().equals(memberId)) {
             throw new IllegalArgumentException("삭제할 권한이 없습니다.");
         }
+        imageUtils.deleteAllContentImages(task.getContent());
         taskRepository.delete(task);
     }
 }

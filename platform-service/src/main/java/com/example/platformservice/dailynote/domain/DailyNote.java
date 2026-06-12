@@ -28,6 +28,7 @@ public class DailyNote extends Auditable {
 
     private LocalDate logicalDate;
 
+    @Column(columnDefinition = "MEDIUMTEXT")
     private String content;
 
     public DailyNote(final Long authorId, final DayStartTime dayStartTime) {

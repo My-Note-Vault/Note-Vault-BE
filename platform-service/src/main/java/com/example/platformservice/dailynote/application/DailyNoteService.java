@@ -1,5 +1,6 @@
 package com.example.platformservice.dailynote.application;
 
+import com.example.common.file.image.ImageUtils;
 import com.example.platformservice.dailynote.application.response.DailyNoteDetailResponse;
 import com.example.platformservice.dailynote.application.response.DailyNoteSimpleResponse;
 import com.example.platformservice.dailynote.application.response.PlanResponse;
@@ -27,6 +28,7 @@ public class DailyNoteService {
     private final DailyNotePlanRepository dailyNotePlanRepository;
 
     private final MemberRepository memberRepository;
+    private final ImageUtils imageUtils;
 
     @Transactional
     public Long addPlan(final Long authorId, final Long dailyNoteId, final Type type, final String content) {
@@ -85,7 +87,9 @@ public class DailyNoteService {
         DailyNote dailyNote = dailyNoteRepository.findByIdAndAuthorId(dailyNoteId, authorId)
                 .orElseThrow(() -> new NoSuchElementException(NO_DAILY_NOTE_MESSAGE));
 
+        String oldContent = dailyNote.getContent();
         dailyNote.edit(content);
+        imageUtils.deleteRemovedContentImages(oldContent, content);
     }
 
     @Transactional
@@ -96,6 +100,7 @@ public class DailyNoteService {
         if (!dailyNote.getAuthorId().equals(memberId)) {
             throw new IllegalArgumentException(ACCESS_DENIED);
         }
+        imageUtils.deleteAllContentImages(dailyNote.getContent());
         dailyNoteRepository.delete(dailyNote);
         dailyNotePlanRepository.deleteAllByDailyNote(dailyNote);
     }

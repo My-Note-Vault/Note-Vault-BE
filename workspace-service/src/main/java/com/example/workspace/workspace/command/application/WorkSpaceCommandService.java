@@ -1,5 +1,6 @@
 package com.example.workspace.workspace.command.application;
 
+import com.example.common.file.image.ImageUtils;
 import com.example.workspace.common.WorkspaceConst;
 import com.example.workspace.workspace.command.domain.*;
 import lombok.RequiredArgsConstructor;
@@ -21,6 +22,7 @@ public class WorkSpaceCommandService {
     private final WorkSpaceRepository workSpaceRepository;
     private final ParticipantRepository participantRepository;
     private final InvitationRepository invitationRepository;
+    private final ImageUtils imageUtils;
 
     @Transactional
     public Long createWorkSpace(
@@ -50,7 +52,9 @@ public class WorkSpaceCommandService {
         WorkSpace workSpace = workSpaceRepository.findById(workSpaceId)
                 .orElseThrow(() -> new NoSuchElementException("WorkSpace 를 찾을 수 없습니다"));
 
+        String oldContent = workSpace.getContent();
         workSpace.edit(memberId, name, content, isPublic);
+        imageUtils.deleteRemovedContentImages(oldContent, content);
     }
 
     // creator 만 사용 가능
@@ -105,6 +109,7 @@ public class WorkSpaceCommandService {
         if (!workSpace.getCreatorId().equals(memberId)) {
             throw new IllegalArgumentException("삭제할 권한이 없습니다.");
         }
+        imageUtils.deleteAllContentImages(workSpace.getContent());
         workSpaceRepository.delete(workSpace);
     }
 

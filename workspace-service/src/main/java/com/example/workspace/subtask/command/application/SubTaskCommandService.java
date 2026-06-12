@@ -1,5 +1,6 @@
 package com.example.workspace.subtask.command.application;
 
+import com.example.common.file.image.ImageUtils;
 import com.example.workspace.subtask.command.domain.SubTask;
 import com.example.workspace.subtask.command.domain.SubTaskRepository;
 import com.example.workspace.task.command.domain.value.Status;
@@ -15,6 +16,7 @@ import java.util.NoSuchElementException;
 public class SubTaskCommandService {
 
     private final SubTaskRepository subTaskRepository;
+    private final ImageUtils imageUtils;
 
     @Transactional
     public Long createSubTask(final Long memberId, final Long taskId) {
@@ -39,7 +41,9 @@ public class SubTaskCommandService {
         SubTask subTask = subTaskRepository.findById(subTaskId)
                 .orElseThrow(() -> new NoSuchElementException("Task 를 찾을 수 없습니다"));
 
+        String oldContent = subTask.getContent();
         subTask.edit(memberId, title, content, status, startDateTime, endDateTime, isPublic);
+        imageUtils.deleteRemovedContentImages(oldContent, content);
         subTaskRepository.save(subTask);
     }
 
@@ -51,6 +55,7 @@ public class SubTaskCommandService {
         if (!subTask.getAuthorId().equals(memberId)) {
             throw new IllegalArgumentException("삭제할 권한이 없습니다.");
         }
+        imageUtils.deleteAllContentImages(subTask.getContent());
         subTaskRepository.delete(subTask);
     }
 }
