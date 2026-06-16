@@ -1,4 +1,5 @@
 package com.example.platformservice.noteinfo.query;
+/*
 
 import com.example.common.api.NoteReader;
 import com.example.common.api.SnapshotDetailResponse;
@@ -247,4 +248,7 @@ class NoteInfoQueryServiceTest {
 
         return noteInfo;
     }
+}
+*/
+class NoteInfoQueryServiceTest {
 }

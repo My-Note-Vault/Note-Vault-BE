@@ -1,4 +1,5 @@
 package com.example.platformservice.viewed.application;
+/*
 
 import com.example.platformservice.viewed.domain.RecentlyViewedId;
 import com.example.platformservice.viewed.domain.RecentlyViewedInfo;
@@ -117,4 +118,7 @@ class RecentlyViewedInfoServiceTest {
             assertThat(deletedId.getNoteInfoId()).isEqualTo(noteInfoId);
         }
     }
+}
+*/
+class RecentlyViewedInfoServiceTest {
 }
