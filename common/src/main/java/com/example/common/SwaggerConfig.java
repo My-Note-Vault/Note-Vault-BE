@@ -58,26 +58,11 @@ public class SwaggerConfig {
     }
 
     @Bean
-    public GroupedOpenApi noteApi() {
+    public GroupedOpenApi documentApi() {
         return GroupedOpenApi.builder()
-                .group("note")
-                .pathsToMatch("/api/v1/note/**")
+                .group("documents")
+                .pathsToMatch("/api/v1/documents/**")
                 .build();
     }
 
-    @Bean
-    public GroupedOpenApi taskApi() {
-        return GroupedOpenApi.builder()
-                .group("task")
-                .pathsToMatch("/api/v1/tasks/**")
-                .build();
-    }
-
-    @Bean
-    public GroupedOpenApi subTaskApi() {
-        return GroupedOpenApi.builder()
-                .group("subTask")
-                .pathsToMatch("/api/v1/subTasks/**")
-                .build();
-    }
 }

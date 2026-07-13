@@ -1,7 +1,7 @@
-package com.example.workspace.task.command.application.request;
+package com.example.workspace.document.ui.request;
 
+import com.example.workspace.document.command.domain.DocumentType;
 import com.example.workspace.task.command.domain.value.Status;
-import jakarta.validation.constraints.NotBlank;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 
@@ -9,17 +9,15 @@ import java.time.LocalDateTime;
 
 @Getter
 @RequiredArgsConstructor
-public class EditTaskRequest {
+public class CreateDocumentRequest {
 
-    @NotBlank
-    private final Long taskId;
-
+    private final DocumentType type;
+    private final Long workSpaceId;
+    private final Long parentId;
     private final String title;
     private final String content;
     private final Status status;
-
     private final LocalDateTime startDateTime;
     private final LocalDateTime endDateTime;
-
     private final Boolean isPublic;
 }

@@ -18,7 +18,7 @@ public class SearchRepository {
 
     private final NamedParameterJdbcTemplate jdbcTemplate;
 
-    public List<SearchDocumentRow> searchWorkspaceDocuments(final Long memberId, final String targetWord) {
+    public List<SearchDocumentRow> searchWorkspaceNotes(final Long memberId, final String targetWord) {
         String sql = """
         SELECT *
         FROM (
@@ -54,10 +54,10 @@ public class SearchRepository {
                 w.name AS workspace_name,
                 w.content AS workspace_content,
                 w.created_at AS workspace_created_at,
-                t.id AS task_id,
-                t.title AS task_title,
-                t.content AS task_content,
-                t.created_at AS task_created_at,
+                d.id AS task_id,
+                d.title AS task_title,
+                d.content AS task_content,
+                d.created_at AS task_created_at,
                 NULL AS subtask_id,
                 NULL AS subtask_title,
                 NULL AS subtask_content,
@@ -66,12 +66,13 @@ public class SearchRepository {
                 NULL AS note_title,
                 NULL AS note_content,
                 NULL AS note_created_at,
-                t.created_at AS matched_created_at
-            FROM task t
-            INNER JOIN workspace w ON w.id = t.workspace_id
+                d.created_at AS matched_created_at
+            FROM document d
+            INNER JOIN workspace w ON w.id = d.workspace_id
             INNER JOIN workspace_member wm ON wm.workspace_id = w.id
             WHERE wm.member_id = :memberId
-              AND (t.title LIKE :keyword ESCAPE :escape OR COALESCE(t.content, '') LIKE :keyword ESCAPE :escape)
+              AND d.type = 'TASK'
+              AND (d.title LIKE :keyword ESCAPE :escape OR COALESCE(d.content, '') LIKE :keyword ESCAPE :escape)
 
             UNION ALL
 
@@ -85,21 +86,22 @@ public class SearchRepository {
                 t.title AS task_title,
                 t.content AS task_content,
                 t.created_at AS task_created_at,
-                s.id AS subtask_id,
-                s.title AS subtask_title,
-                s.content AS subtask_content,
-                s.created_at AS subtask_created_at,
+                d.id AS subtask_id,
+                d.title AS subtask_title,
+                d.content AS subtask_content,
+                d.created_at AS subtask_created_at,
                 NULL AS note_id,
                 NULL AS note_title,
                 NULL AS note_content,
                 NULL AS note_created_at,
-                s.created_at AS matched_created_at
-            FROM subtask s
-            INNER JOIN task t ON t.id = s.task_id
-            INNER JOIN workspace w ON w.id = t.workspace_id
+                d.created_at AS matched_created_at
+            FROM document d
+            INNER JOIN document t ON t.id = d.parent_id AND t.type = 'TASK'
+            INNER JOIN workspace w ON w.id = d.workspace_id
             INNER JOIN workspace_member wm ON wm.workspace_id = w.id
             WHERE wm.member_id = :memberId
-              AND (s.title LIKE :keyword ESCAPE :escape OR COALESCE(s.content, '') LIKE :keyword ESCAPE :escape)
+              AND d.type = 'SUBTASK'
+              AND (d.title LIKE :keyword ESCAPE :escape OR COALESCE(d.content, '') LIKE :keyword ESCAPE :escape)
 
             UNION ALL
 
@@ -117,18 +119,19 @@ public class SearchRepository {
                 s.title AS subtask_title,
                 s.content AS subtask_content,
                 s.created_at AS subtask_created_at,
-                n.id AS note_id,
-                n.title AS note_title,
-                n.content AS note_content,
-                n.created_at AS note_created_at,
-                n.created_at AS matched_created_at
-            FROM note n
-            INNER JOIN subtask s ON s.id = n.subtask_id
-            INNER JOIN task t ON t.id = s.task_id
-            INNER JOIN workspace w ON w.id = t.workspace_id
+                d.id AS note_id,
+                d.title AS note_title,
+                d.content AS note_content,
+                d.created_at AS note_created_at,
+                d.created_at AS matched_created_at
+            FROM document d
+            INNER JOIN document s ON s.id = d.parent_id AND s.type = 'SUBTASK'
+            INNER JOIN document t ON t.id = s.parent_id AND t.type = 'TASK'
+            INNER JOIN workspace w ON w.id = d.workspace_id
             INNER JOIN workspace_member wm ON wm.workspace_id = w.id
             WHERE wm.member_id = :memberId
-              AND (n.title LIKE :keyword ESCAPE :escape OR COALESCE(n.content, '') LIKE :keyword ESCAPE :escape)
+              AND d.type = 'NOTE'
+              AND (d.title LIKE :keyword ESCAPE :escape OR COALESCE(d.content, '') LIKE :keyword ESCAPE :escape)
         ) search_result
         ORDER BY matched_created_at ASC
         """;

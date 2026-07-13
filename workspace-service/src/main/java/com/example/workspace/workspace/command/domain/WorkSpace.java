@@ -27,7 +27,7 @@ public class WorkSpace extends Auditable {
     @Column(nullable = false)
     private String name;
 
-    @Column(columnDefinition = "MEDIUMTEXT")
+    @Column(columnDefinition = "TEXT")
     private String content;
 
     private Boolean isPublic;

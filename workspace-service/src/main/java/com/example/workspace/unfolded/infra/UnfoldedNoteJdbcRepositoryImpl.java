@@ -28,13 +28,14 @@ public class UnfoldedNoteJdbcRepositoryImpl implements UnfoldedNoteJdbcRepositor
             t.title AS task_title,
             s.id AS subtask_id,
             s.title AS subtask_title,
-            tr.id AS note_id,
-            tr.title AS note_title
-        FROM task t
-        LEFT JOIN subtask s ON s.task_id = t.id
-        LEFT JOIN note tr ON tr.subtask_id = s.id
+            n.id AS note_id,
+            n.title AS note_title
+        FROM document t
+        LEFT JOIN document s ON s.parent_id = t.id AND s.type = 'SUBTASK'
+        LEFT JOIN document n ON n.parent_id = s.id AND n.type = 'NOTE'
         WHERE t.workspace_id = :workspaceId
-        ORDER BY t.created_at, s.id, tr.id
+          AND t.type = 'TASK'
+        ORDER BY t.created_at, s.id, n.id
         """;
 
         Map<String, Object> params = Map.of("workspaceId", workspaceId);

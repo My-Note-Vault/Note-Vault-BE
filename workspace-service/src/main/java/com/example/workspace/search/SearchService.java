@@ -22,7 +22,7 @@ public class SearchService {
             return new SearchResponse(List.of(), List.of());
         }
 
-        List<SearchDocumentRow> documentRows = searchRepository.searchWorkspaceDocuments(memberId, targetWord);
+        List<SearchDocumentRow> documentRows = searchRepository.searchWorkspaceNotes(memberId, targetWord);
         List<SearchResponse.DailyNoteResult> dailyNotes = searchRepository.searchDailyNotes(memberId, targetWord);
 
         Map<Long, WorkSpaceResultBuilder> workspaceBuilders = new LinkedHashMap<>();

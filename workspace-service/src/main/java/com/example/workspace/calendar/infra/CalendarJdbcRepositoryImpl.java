@@ -22,8 +22,9 @@ public class CalendarJdbcRepositoryImpl implements CalendarJdbcRepository {
     public List<DailyEventRow> findMonthlyTaskSchedulesByMember(Long memberId, LocalDate from, LocalDate to) {
 
         String sql = """
-                SELECT 'START' AS type, DATE(t.start_date_time) AS schedule_date, COUNT(*) AS count FROM task t
+                SELECT 'START' AS type, DATE(t.start_date_time) AS schedule_date, COUNT(*) AS count FROM document t
                 WHERE t.author_id = :memberId
+                AND t.type = 'TASK'
                 AND t.start_date_time >= :from
                 AND t.start_date_time < :to
                 AND t.status != 'COMPLETED'
@@ -31,8 +32,9 @@ public class CalendarJdbcRepositoryImpl implements CalendarJdbcRepository {
                 
                 UNION ALL
                 
-                SELECT 'END' AS type, DATE(t.end_date_time) AS schedule_date, COUNT(*) AS count FROM task t
+                SELECT 'END' AS type, DATE(t.end_date_time) AS schedule_date, COUNT(*) AS count FROM document t
                 WHERE t.author_id = :memberId
+                AND t.type = 'TASK'
                 AND t.end_date_time >= :from
                 AND t.end_date_time < :to
                 AND t.status != 'COMPLETED'
@@ -59,8 +61,9 @@ public class CalendarJdbcRepositoryImpl implements CalendarJdbcRepository {
 
 
         String sql = """
-                SELECT 'START' AS type, DATE(st.start_date_time) AS schedule_date, COUNT(*) AS count FROM subtask st
+                SELECT 'START' AS type, DATE(st.start_date_time) AS schedule_date, COUNT(*) AS count FROM document st
                 WHERE st.author_id = :memberId
+                AND st.type = 'SUBTASK'
                 AND st.start_date_time >= :from
                 AND st.start_date_time < :to
                 AND st.status != 'COMPLETED'
@@ -68,8 +71,9 @@ public class CalendarJdbcRepositoryImpl implements CalendarJdbcRepository {
                 
                 UNION ALL
                 
-                SELECT 'END' AS type, DATE(st.end_date_time) AS schedule_date, COUNT(*) AS count FROM subtask st
+                SELECT 'END' AS type, DATE(st.end_date_time) AS schedule_date, COUNT(*) AS count FROM document st
                 WHERE st.author_id = :memberId
+                AND st.type = 'SUBTASK'
                 AND st.end_date_time >= :from
                 AND st.end_date_time < :to
                 AND st.status != 'COMPLETED'
@@ -101,12 +105,13 @@ public class CalendarJdbcRepositoryImpl implements CalendarJdbcRepository {
             t.status,
             DATE(t.start_date_time) AS start_date,
             DATE(t.end_date_time) AS end_date
-        FROM task t
+        FROM document t
         WHERE (
             DATE(t.start_date_time) = :targetDate OR
             DATE(t.end_date_time) = :targetDate
         )
         AND t.author_id = :memberId
+        AND t.type = 'TASK'
         """;
 
         MapSqlParameterSource params = new MapSqlParameterSource()
@@ -142,13 +147,14 @@ public class CalendarJdbcRepositoryImpl implements CalendarJdbcRepository {
             t.status AS parent_task_status,
             DATE(t.start_date_time) AS parent_task_start_date,
             DATE(t.end_date_time) AS parent_task_end_date
-        FROM subtask st
-        JOIN task t ON t.id = st.task_id
+        FROM document st
+        JOIN document t ON t.id = st.parent_id AND t.type = 'TASK'
         WHERE (
             DATE(st.start_date_time) = :targetDate OR
             DATE(st.end_date_time) = :targetDate
         )
         AND st.author_id = :memberId
+        AND st.type = 'SUBTASK'
         """;
 
         MapSqlParameterSource params = new MapSqlParameterSource()

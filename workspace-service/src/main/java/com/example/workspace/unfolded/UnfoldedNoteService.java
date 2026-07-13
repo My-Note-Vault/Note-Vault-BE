@@ -1,9 +1,5 @@
 package com.example.workspace.unfolded;
 
-import com.example.workspace.subtask.command.domain.SubTaskRepository;
-import com.example.workspace.task.command.domain.Task;
-import com.example.workspace.task.command.domain.TaskRepository;
-import com.example.workspace.note.command.domain.NoteRepository;
 import com.example.workspace.unfolded.domain.*;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -17,10 +13,6 @@ public class UnfoldedNoteService {
 
     private final UnfoldedNoteRepository unfoldedNoteRepository;
     private final UnfoldedNoteJdbcRepository unfoldedNoteJdbcRepository;
-
-    private final TaskRepository taskRepository;
-    private final SubTaskRepository subTaskRepository;
-    private final NoteRepository noteRepository;
 
     @Transactional(readOnly = true)
     public List<UnfoldedNoteId> findAllUnfoldedNotes(final Long authorId) {
@@ -47,7 +39,7 @@ public class UnfoldedNoteService {
     @Transactional
     public void addSidebarInfo(final UnfoldedNoteId unfoldedNoteId, final String title, final Long authorId) {
         UnfoldedNote unfoldedNote = unfoldedNoteRepository.findById(unfoldedNoteId)
-                .orElseThrow(() -> new IllegalArgumentException("Cannot Find Unfolded Note!"));
+                .orElseThrow(() -> new IllegalArgumentException("Cannot Find Unfolded Document!"));
 
 
     }
