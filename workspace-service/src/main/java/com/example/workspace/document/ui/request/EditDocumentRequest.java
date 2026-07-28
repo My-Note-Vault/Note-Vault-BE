@@ -11,7 +11,7 @@ import java.time.LocalDateTime;
 public class EditDocumentRequest {
 
     private final String title;
-    private final String content;
+
     private final Status status;
     private final LocalDateTime startDateTime;
     private final LocalDateTime endDateTime;

@@ -60,6 +60,28 @@ public class SessionRegistry {
         }
     }
 
+    public void sendTo(SessionKey key, String sessionId, byte[] payload) {
+        rooms.getOrDefault(key, Set.of()).stream()
+                .filter(session -> session.getId().equals(sessionId))
+                .findFirst()
+                .ifPresent(session -> send(key, session, payload));
+    }
+
+    private void send(SessionKey key, WebSocketSession session, byte[] payload) {
+        if (!session.isOpen()) {
+            remove(key, session);
+            return;
+        }
+
+        try {
+            session.sendMessage(new BinaryMessage(payload));
+        } catch (IOException | IllegalStateException e) {
+            log.warn("Failed to send Yjs message to session {}", session.getId(), e);
+            remove(key, session);
+            closeQuietly(session);
+        }
+    }
+
     private WebSocketSession wrapIfNeeded(WebSocketSession session) {
         if (session instanceof ConcurrentWebSocketSessionDecorator) {
             return session;

@@ -18,6 +18,11 @@ public class WebSocketConfig implements WebSocketConfigurer {
     public void registerWebSocketHandlers(WebSocketHandlerRegistry registry) {
         registry.addHandler(workSpaceEditorWebSocketHandler, "/ws/workspaces/{workSpaceId}/{documentType}/{documentId}")
                 .addInterceptors(jwtHandshakeInterceptor)
-                .setAllowedOrigins("https://note-vault.cloud", "http://localhost:5173");
+                .setAllowedOrigins(
+                        "https://note-vault.cloud",
+                        "http://localhost:5173",
+                        "http://127.0.0.1:5173",
+                        "http://[::1]:5173"
+                );
     }
 }

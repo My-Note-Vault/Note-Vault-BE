@@ -66,7 +66,6 @@ public class DocumentController {
                 type,
                 request.getParentId(),
                 request.getTitle(),
-                request.getContent(),
                 request.getStatus(),
                 request.getStartDateTime(),
                 request.getEndDateTime(),
@@ -94,13 +93,11 @@ public class DocumentController {
             return;
         }
 
-        documentCommandService.editDocument(
+        documentCommandService.initializeDocument(
                 memberId,
                 id,
                 request.getType(),
-                null,
                 request.getTitle(),
-                request.getContent(),
                 request.getStatus(),
                 request.getStartDateTime(),
                 request.getEndDateTime(),
@@ -110,7 +107,6 @@ public class DocumentController {
 
     private boolean hasInitialFields(final CreateDocumentRequest request) {
         return request.getTitle() != null
-                || request.getContent() != null
                 || request.getStatus() != null
                 || request.getStartDateTime() != null
                 || request.getEndDateTime() != null

@@ -1,6 +1,7 @@
 package com.example.workspace.document.command.domain;
 
 public enum DocumentType {
+    WORKSPACE_HOME(null),
     TASK(null),
     SUBTASK(TASK),
     NOTE(SUBTASK);

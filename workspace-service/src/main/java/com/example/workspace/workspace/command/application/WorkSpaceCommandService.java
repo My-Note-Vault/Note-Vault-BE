@@ -2,6 +2,8 @@ package com.example.workspace.workspace.command.application;
 
 import com.example.common.file.image.ImageUtils;
 import com.example.workspace.common.WorkspaceConst;
+import com.example.workspace.document.command.domain.Document;
+import com.example.workspace.document.command.domain.DocumentRepository;
 import com.example.workspace.workspace.command.domain.*;
 import lombok.RequiredArgsConstructor;
 import org.springframework.dao.DataIntegrityViolationException;
@@ -22,6 +24,7 @@ public class WorkSpaceCommandService {
     private final WorkSpaceRepository workSpaceRepository;
     private final ParticipantRepository participantRepository;
     private final InvitationRepository invitationRepository;
+    private final DocumentRepository documentRepository;
     private final ImageUtils imageUtils;
 
     @Transactional
@@ -36,6 +39,7 @@ public class WorkSpaceCommandService {
 
         Participant participant = new Participant(workSpace.getId(), memberId);
         participantRepository.save(participant);
+        documentRepository.save(Document.workspaceHome(workSpace.getId(), memberId, content));
 
         return workSpace.getId();
     }

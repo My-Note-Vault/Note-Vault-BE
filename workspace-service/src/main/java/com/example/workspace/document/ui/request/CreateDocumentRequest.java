@@ -15,7 +15,6 @@ public class CreateDocumentRequest {
     private final Long workSpaceId;
     private final Long parentId;
     private final String title;
-    private final String content;
     private final Status status;
     private final LocalDateTime startDateTime;
     private final LocalDateTime endDateTime;

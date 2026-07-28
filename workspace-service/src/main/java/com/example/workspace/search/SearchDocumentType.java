@@ -4,5 +4,6 @@ enum SearchDocumentType {
     WORKSPACE,
     TASK,
     SUBTASK,
-    NOTE
+    NOTE,
+    DAILY_NOTE
 }
