@@ -7,11 +7,14 @@ import com.example.workspace.document.command.domain.Document;
 import com.example.workspace.document.query.DocumentQueryService;
 import com.example.workspace.document.ui.request.CreateDocumentRequest;
 import com.example.workspace.document.ui.request.EditDocumentRequest;
+import com.example.workspace.document.ui.response.CollaborationBootstrapResponse;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.CacheControl;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.Locale;
 
 @RequiredArgsConstructor
 @RequestMapping("/api/v1/documents")
@@ -36,6 +39,28 @@ public class DocumentController {
             @AuthMemberId final Long memberId
     ) {
         return ResponseEntity.ok(documentQueryService.findDocumentById(memberId, id, type));
+    }
+
+    @GetMapping("/{type}/{id}/collaboration-bootstrap")
+    public ResponseEntity<CollaborationBootstrapResponse> findCollaborationBootstrap(
+            @PathVariable final String type,
+            @PathVariable final Long id,
+            @RequestParam final Long workspaceId,
+            @AuthMemberId final Long memberId
+    ) {
+        DocumentType documentType = "space".equalsIgnoreCase(type)
+                ? DocumentType.WORKSPACE_HOME
+                : DocumentType.valueOf(type.toUpperCase(Locale.ROOT));
+        DocumentQueryService.CollaborationHistory history =
+                documentQueryService.findCollaborationBootstrap(
+                        memberId,
+                        workspaceId,
+                        id,
+                        documentType
+                );
+        return ResponseEntity.ok()
+                .cacheControl(CacheControl.noStore())
+                .body(CollaborationBootstrapResponse.from(history));
     }
 
     @PostMapping

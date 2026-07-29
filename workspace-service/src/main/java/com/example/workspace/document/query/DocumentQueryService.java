@@ -34,6 +34,28 @@ public class DocumentQueryService {
         return documentRepository.findAllByAuthorIdAndType(authorId, type);
     }
 
+    @Transactional
+    public CollaborationHistory findCollaborationBootstrap(
+            final Long memberId,
+            final Long workSpaceId,
+            final Long documentId,
+            final DocumentType type
+    ) {
+        Document document = type == DocumentType.WORKSPACE_HOME
+                ? documentRepository.findByWorkSpaceIdAndType(workSpaceId, type)
+                        .orElseThrow(() -> new NoSuchElementException(type.notFoundMessage()))
+                : documentRepository.findByIdAndType(documentId, type)
+                        .orElseThrow(() -> new NoSuchElementException(type.notFoundMessage()));
+
+        return findCollaborationHistory(
+                memberId,
+                workSpaceId,
+                document.getId(),
+                type,
+                0L
+        );
+    }
+
     // PostgreSQL의 SELECT ... FOR SHARE는 read-only 트랜잭션에서 실행할 수 없다.
     @Transactional
     public CollaborationHistory findCollaborationHistory(
