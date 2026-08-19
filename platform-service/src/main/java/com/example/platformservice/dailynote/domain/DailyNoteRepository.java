@@ -20,11 +20,11 @@ public interface DailyNoteRepository extends JpaRepository<DailyNote, Long> {
 SELECT d
     FROM DailyNote d
     WHERE d.authorId = :authorId
-    AND d.logicalDate >= :logicalDate
+    AND d.logicalDate < :logicalDate
     ORDER BY d.logicalDate DESC
     LIMIT 1
 """)
-    Optional<DailyNote> findLatestDailyNoteAfter(Long authorId, LocalDate logicalDate);
+    Optional<DailyNote> findLatestDailyNoteBefore(Long authorId, LocalDate logicalDate);
 
     @Query("""
 SELECT d 

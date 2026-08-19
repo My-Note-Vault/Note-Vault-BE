@@ -10,11 +10,18 @@ public interface DailyNotePlanRepository extends JpaRepository<DailyNotePlan, Lo
 
     void deleteAllByDailyNote(DailyNote dailyNote);
 
-    // dailyNoteId = :dailyNoteId && isDone = false
     @Query("""
 SELECT p FROM DailyNotePlan dnp
 JOIN Plan p ON p.id = dnp.plan.id
 WHERE dnp.dailyNote.id = :dailyNoteId
 """)
     List<Plan> findAllPlansByDailyNoteId(Long dailyNoteId);
+
+    @Query("""
+SELECT p FROM DailyNotePlan dnp
+JOIN Plan p ON p.id = dnp.plan.id
+WHERE dnp.dailyNote.id = :dailyNoteId
+AND p.isDone = false
+""")
+    List<Plan> findAllIncompletePlansByDailyNoteId(Long dailyNoteId);
 }

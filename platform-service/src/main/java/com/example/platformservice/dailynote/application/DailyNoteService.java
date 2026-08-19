@@ -147,10 +147,10 @@ public class DailyNoteService {
             dailyNote = new DailyNote(authorId, dayStartTime);
             dailyNoteRepository.save(dailyNote);
 
-            Optional<DailyNote> latestDailyNote = dailyNoteRepository.findLatestDailyNoteAfter(authorId, logicalToday);
+            Optional<DailyNote> latestDailyNote = dailyNoteRepository.findLatestDailyNoteBefore(authorId, logicalToday);
             if (latestDailyNote.isPresent()) {
                 Long latestDailyNoteId = latestDailyNote.get().getId();
-                List<Plan> allIncompletePlans = dailyNotePlanRepository.findAllPlansByDailyNoteId(latestDailyNoteId);
+                List<Plan> allIncompletePlans = dailyNotePlanRepository.findAllIncompletePlansByDailyNoteId(latestDailyNoteId);
 
                 List<DailyNotePlan> dailyNotePlans = allIncompletePlans.stream()
                         .map(plan -> new DailyNotePlan(dailyNote, plan))
