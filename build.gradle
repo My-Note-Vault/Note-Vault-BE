@@ -41,6 +41,7 @@ dependencies {
     implementation project(":platform-service")
     implementation project(":workspace-service")
     implementation project(":common")
+    implementation project(":knowledge-assistant-service")
 
     runtimeOnly 'org.postgresql:postgresql'
 
