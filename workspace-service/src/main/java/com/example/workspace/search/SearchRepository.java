@@ -35,8 +35,8 @@ public class SearchRepository {
              AND home.type = 'WORKSPACE_HOME'
             WHERE wm.member_id = :memberId
               AND (
-                  w.name LIKE :keyword ESCAPE :escape
-                  OR COALESCE(home.search_content, w.content, '') LIKE :keyword ESCAPE :escape
+                  w.name ILIKE :keyword ESCAPE :escape
+                  OR COALESCE(home.search_content, w.content, '') ILIKE :keyword ESCAPE :escape
               )
 
             UNION ALL
@@ -52,8 +52,8 @@ public class SearchRepository {
             WHERE wm.member_id = :memberId
               AND d.type <> 'WORKSPACE_HOME'
               AND (
-                  d.title LIKE :keyword ESCAPE :escape
-                  OR COALESCE(d.search_content, '') LIKE :keyword ESCAPE :escape
+                  d.title ILIKE :keyword ESCAPE :escape
+                  OR COALESCE(d.search_content, '') ILIKE :keyword ESCAPE :escape
               )
         ) search_result
         ORDER BY created_at DESC
@@ -70,11 +70,30 @@ public class SearchRepository {
 
     public List<SearchResponse.SearchResult> searchDailyNotes(final Long memberId, final String targetWord) {
         String sql = """
-        SELECT id, logical_date, content, created_at
-        FROM daily_note
-        WHERE author_id = :memberId
-          AND COALESCE(content, '') LIKE :keyword ESCAPE :escape
-        ORDER BY created_at ASC
+        SELECT
+            dn.id,
+            dn.logical_date,
+            CASE
+                WHEN COALESCE(dn.content, '') ILIKE :keyword ESCAPE :escape THEN dn.content
+                ELSE matched_plan.content
+            END AS content,
+            dn.created_at
+        FROM daily_note dn
+        LEFT JOIN LATERAL (
+            SELECT p.content
+            FROM daily_note_plan dnp
+            INNER JOIN plan p ON p.id = dnp.plan_id
+            WHERE dnp.daily_note_id = dn.id
+              AND COALESCE(p.content, '') ILIKE :keyword ESCAPE :escape
+            ORDER BY p.id
+            LIMIT 1
+        ) matched_plan ON TRUE
+        WHERE dn.author_id = :memberId
+          AND (
+              COALESCE(dn.content, '') ILIKE :keyword ESCAPE :escape
+              OR matched_plan.content IS NOT NULL
+          )
+        ORDER BY dn.created_at ASC
         """;
 
         return jdbcTemplate.query(sql, params(memberId, targetWord), (rs, rowNum) -> new SearchResponse.SearchResult(
