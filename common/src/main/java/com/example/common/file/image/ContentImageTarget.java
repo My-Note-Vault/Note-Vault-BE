@@ -6,7 +6,6 @@ public enum ContentImageTarget {
     DAILY_NOTE("daily-note"),
     WORKSPACE("workspace"),
     TASK("task"),
-    SUBTASK("subtask"),
     NOTE("note"),
     TRIVIA("trivia");
 

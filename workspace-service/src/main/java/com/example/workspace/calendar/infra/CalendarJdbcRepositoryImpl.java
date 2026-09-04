@@ -57,46 +57,6 @@ public class CalendarJdbcRepositoryImpl implements CalendarJdbcRepository {
     }
 
     @Override
-    public List<DailyEventRow> findMonthlySubTaskSchedulesByMember(Long memberId, LocalDate from, LocalDate to) {
-
-
-        String sql = """
-                SELECT 'START' AS type, DATE(st.start_date_time) AS schedule_date, COUNT(*) AS count FROM document st
-                WHERE st.author_id = :memberId
-                AND st.type = 'SUBTASK'
-                AND st.start_date_time >= :from
-                AND st.start_date_time < :to
-                AND st.status != 'COMPLETED'
-                GROUP BY schedule_date
-                
-                UNION ALL
-                
-                SELECT 'END' AS type, DATE(st.end_date_time) AS schedule_date, COUNT(*) AS count FROM document st
-                WHERE st.author_id = :memberId
-                AND st.type = 'SUBTASK'
-                AND st.end_date_time >= :from
-                AND st.end_date_time < :to
-                AND st.status != 'COMPLETED'
-                GROUP BY schedule_date
-                """;
-
-        RowMapper<DailyEventRow> mapper = (rs, rowNum) -> {
-            return new DailyEventRow(
-                    DailyEventRow.EventType.valueOf(rs.getString("type")),
-                    rs.getObject("schedule_date", LocalDate.class),
-                    rs.getInt("count")
-            );
-        };
-
-        Map<String, Object> params = Map.of(
-                "memberId", memberId,
-                "from", from,
-                "to", to
-        );
-        return namedJdbcTemplate.query(sql, params, mapper);
-    }
-
-    @Override
     public List<DateEventResponse> findTasksByDate(Long memberId, LocalDate targetDate) {
         String sql = """
         SELECT
@@ -129,55 +89,6 @@ public class CalendarJdbcRepositoryImpl implements CalendarJdbcRepository {
                         rs.getObject("start_date", LocalDate.class),
                         rs.getObject("end_date", LocalDate.class),
                         null
-                )
-        );
-    }
-
-    @Override
-    public List<DateEventResponse> findSubTasksByDate(Long memberId, LocalDate targetDate) {
-        String sql = """
-        SELECT
-            st.id,
-            st.title,
-            st.status,
-            DATE(st.start_date_time) AS start_date,
-            DATE(st.end_date_time) AS end_date,
-            t.id AS parent_task_id,
-            t.title AS parent_task_title,
-            t.status AS parent_task_status,
-            DATE(t.start_date_time) AS parent_task_start_date,
-            DATE(t.end_date_time) AS parent_task_end_date
-        FROM document st
-        JOIN document t ON t.id = st.parent_id AND t.type = 'TASK'
-        WHERE (
-            DATE(st.start_date_time) = :targetDate OR
-            DATE(st.end_date_time) = :targetDate
-        )
-        AND st.author_id = :memberId
-        AND st.type = 'SUBTASK'
-        """;
-
-        MapSqlParameterSource params = new MapSqlParameterSource()
-                .addValue("targetDate", targetDate)
-                .addValue("memberId", memberId);
-
-        return namedJdbcTemplate.query(
-                sql,
-                params,
-                (rs, rowNum) -> new DateEventResponse(
-                        "SUBTASK",
-                        rs.getLong("id"),
-                        rs.getString("title"),
-                        rs.getString("status"),
-                        rs.getObject("start_date", LocalDate.class),
-                        rs.getObject("end_date", LocalDate.class),
-                        new DateEventResponse.Parent(
-                                rs.getLong("parent_task_id"),
-                                rs.getString("parent_task_title"),
-                                rs.getString("parent_task_status"),
-                                rs.getObject("parent_task_start_date", LocalDate.class),
-                                rs.getObject("parent_task_end_date", LocalDate.class)
-                        )
                 )
         );
     }

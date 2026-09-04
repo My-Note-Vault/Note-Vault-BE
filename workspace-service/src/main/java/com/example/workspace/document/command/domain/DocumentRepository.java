@@ -49,4 +49,6 @@ public interface DocumentRepository extends JpaRepository<Document, Long> {
     List<Document> findAllByAuthorIdAndType(Long authorId, DocumentType type);
 
     List<Document> findAllByWorkSpaceIdAndType(Long workSpaceId, DocumentType type);
+
+    List<Document> findAllByParentId(Long parentId);
 }

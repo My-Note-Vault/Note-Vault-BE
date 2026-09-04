@@ -34,7 +34,6 @@ import java.util.NoSuchElementException;
 public class Document extends Auditable {
 
     private static final String DEFAULT_TASK_TITLE = "새 Task";
-    private static final String DEFAULT_SUBTASK_TITLE = "새 SubTask";
     private static final String DEFAULT_NOTE_TITLE = "새 Document";
     private static final String WORKSPACE_HOME_TITLE = "Workspace Home";
     private static final String DEFAULT_CONTENT = "";
@@ -118,11 +117,11 @@ public class Document extends Auditable {
         this.isPublic = isPublic;
     }
 
-    public static Document task(final Long workSpaceId, final Long authorId) {
+    public static Document task(final Long workSpaceId, final Long parentId, final Long authorId) {
         return new Document(
                 DocumentType.TASK,
                 workSpaceId,
-                null,
+                parentId,
                 authorId,
                 new Schedule(Status.NOT_STARTED, LocalDateTime.now(), LocalDateTime.now()),
                 DEFAULT_TASK_TITLE,
@@ -148,26 +147,11 @@ public class Document extends Auditable {
         );
     }
 
-    public static Document subTask(final Document parentTask, final Long authorId) {
-        parentTask.validateType(DocumentType.TASK);
-        return new Document(
-                DocumentType.SUBTASK,
-                parentTask.getWorkSpaceId(),
-                parentTask.getId(),
-                authorId,
-                new Schedule(Status.NOT_STARTED, null, null),
-                DEFAULT_SUBTASK_TITLE,
-                DEFAULT_CONTENT,
-                false
-        );
-    }
-
-    public static Document note(final Document parentSubTask, final Long authorId) {
-        parentSubTask.validateType(DocumentType.SUBTASK);
+    public static Document note(final Long workSpaceId, final Long parentId, final Long authorId) {
         return new Document(
                 DocumentType.NOTE,
-                parentSubTask.getWorkSpaceId(),
-                parentSubTask.getId(),
+                workSpaceId,
+                parentId,
                 authorId,
                 null,
                 DEFAULT_NOTE_TITLE,
@@ -193,7 +177,7 @@ public class Document extends Auditable {
         this.crdtState = crdtState == null ? this.crdtState : crdtState;
         this.isPublic = isPublic == null ? this.isPublic : isPublic;
 
-        if (this.type == DocumentType.TASK || this.type == DocumentType.SUBTASK) {
+        if (this.type == DocumentType.TASK) {
             if (this.schedule == null) {
                 this.schedule = new Schedule(Status.NOT_STARTED, null, null);
             }
@@ -202,12 +186,12 @@ public class Document extends Auditable {
     }
 
     public void moveTo(final Document parent) {
-        if (!this.type.requiresParent()) {
-            throw new IllegalArgumentException(this.type + " 문서는 부모 문서가 필요하지 않습니다");
-        }
-        parent.validateType(this.type.parentType());
         this.parentId = parent.getId();
         this.workSpaceId = parent.getWorkSpaceId();
+    }
+
+    public void reparentTo(final Long parentId) {
+        this.parentId = parentId;
     }
 
     public boolean updateSearchProjection(

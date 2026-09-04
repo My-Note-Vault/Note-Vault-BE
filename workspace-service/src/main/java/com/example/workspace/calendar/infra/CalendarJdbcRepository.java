@@ -10,9 +10,5 @@ public interface CalendarJdbcRepository {
 
     List<DailyEventRow> findMonthlyTaskSchedulesByMember(Long memberId, LocalDate from, LocalDate to);
 
-    List<DailyEventRow> findMonthlySubTaskSchedulesByMember(Long memberId, LocalDate from, LocalDate to);
-
     List<DateEventResponse> findTasksByDate(Long memberId, LocalDate targetDate);
-
-    List<DateEventResponse> findSubTasksByDate(Long memberId, LocalDate targetDate);
 }

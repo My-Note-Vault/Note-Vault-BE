@@ -130,6 +130,11 @@ public class ImageUtils {
             throw new IllegalArgumentException("올바르지 않은 이미지 key 입니다.");
         }
 
+        // 타입 통합 이전에 저장된 이미지 키는 조회와 정리를 위해 계속 허용한다.
+        if (key.startsWith(CONTENT_IMAGE_KEY_PREFIX + "subtask/")) {
+            return;
+        }
+
         for (ContentImageTarget target : ContentImageTarget.values()) {
             if (key.startsWith(CONTENT_IMAGE_KEY_PREFIX + target.getPath() + "/")) {
                 return;

@@ -1,34 +1,16 @@
 package com.example.workspace.document.command.domain;
 
 public enum DocumentType {
-    WORKSPACE_HOME(null),
-    TASK(null),
-    SUBTASK(TASK),
-    NOTE(SUBTASK);
-
-    private final DocumentType parentType;
-
-    DocumentType(final DocumentType parentType) {
-        this.parentType = parentType;
-    }
-
-    public boolean requiresParent() {
-        return parentType != null;
-    }
-
-    public DocumentType parentType() {
-        return parentType;
-    }
+    WORKSPACE_HOME,
+    TASK,
+    NOTE;
 
     public String notFoundMessage() {
         return this + " 문서를 찾을 수 없습니다";
     }
 
     public String parentNotFoundMessage() {
-        if (!requiresParent()) {
-            return this + " 문서는 부모 문서가 필요하지 않습니다";
-        }
-        return parentType + " 문서를 찾을 수 없습니다";
+        return "부모 문서를 찾을 수 없습니다";
     }
 
     public String accessDeniedMessage() {

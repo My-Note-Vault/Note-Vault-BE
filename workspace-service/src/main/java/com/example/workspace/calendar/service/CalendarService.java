@@ -7,7 +7,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
-import java.util.ArrayList;
 import java.util.EnumMap;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -25,11 +24,7 @@ public class CalendarService {
         LocalDate from = LocalDate.of(year, month, 1);
         LocalDate to = LocalDate.of(year, month, 1).plusMonths(1);
 
-        List<DailyEventRow> monthlyTaskSchedulesByMember = calendarJdbcRepository.findMonthlyTaskSchedulesByMember(memberId, from, to);
-        List<DailyEventRow> monthlySubTaskSchedulesByMember = calendarJdbcRepository.findMonthlySubTaskSchedulesByMember(memberId, from, to);
-
-        List<DailyEventRow> allSchedules = new ArrayList<>(monthlyTaskSchedulesByMember);
-        allSchedules.addAll(monthlySubTaskSchedulesByMember);
+        List<DailyEventRow> allSchedules = calendarJdbcRepository.findMonthlyTaskSchedulesByMember(memberId, from, to);
 
         Map<LocalDate, Map<DailyEventRow.EventType, Integer>> schedulesByDate = new TreeMap<>();
         for (DailyEventRow schedule : allSchedules) {
@@ -42,13 +37,6 @@ public class CalendarService {
 
     @Transactional(readOnly = true)
     public List<DateEventResponse> findAllDateEvents(final Long memberId, final LocalDate date) {
-        List<DateEventResponse> tasksByDate = calendarJdbcRepository.findTasksByDate(memberId, date);
-        List<DateEventResponse> subTasksByDate = calendarJdbcRepository.findSubTasksByDate(memberId, date);
-
-        List<DateEventResponse> allEvents = new ArrayList<>();
-        allEvents.addAll(tasksByDate);
-        allEvents.addAll(subTasksByDate);
-
-        return allEvents;
+        return calendarJdbcRepository.findTasksByDate(memberId, date);
     }
 }

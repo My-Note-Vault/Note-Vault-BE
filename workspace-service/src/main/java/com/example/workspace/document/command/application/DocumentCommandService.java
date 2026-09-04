@@ -35,21 +35,23 @@ public class DocumentCommandService {
             final Long workSpaceId,
             final Long parentId
     ) {
-        Document document = switch (type) {
-            case WORKSPACE_HOME ->
-                    throw new IllegalArgumentException("Workspace home 문서는 직접 생성할 수 없습니다");
-            case TASK -> {
-                validateParticipant(workSpaceId, memberId, type);
-                yield Document.task(workSpaceId, memberId);
-            }
-            case SUBTASK, NOTE -> {
-                Document parent = findParent(parentId, type);
-                validateParticipant(parent.getWorkSpaceId(), memberId, type);
-                yield type == DocumentType.SUBTASK
-                        ? Document.subTask(parent, memberId)
-                        : Document.note(parent, memberId);
-            }
-        };
+        if (type == DocumentType.WORKSPACE_HOME) {
+            throw new IllegalArgumentException("Workspace home 문서는 직접 생성할 수 없습니다");
+        }
+
+        Document parent = parentId == null ? null : findParent(parentId, type);
+        Long resolvedWorkSpaceId = parent == null ? workSpaceId : parent.getWorkSpaceId();
+        if (resolvedWorkSpaceId == null) {
+            throw new IllegalArgumentException("Workspace 를 지정해야 합니다");
+        }
+        if (parent != null && workSpaceId != null && !workSpaceId.equals(resolvedWorkSpaceId)) {
+            throw new IllegalArgumentException("부모 문서와 같은 Workspace 에만 생성할 수 있습니다");
+        }
+        validateParticipant(resolvedWorkSpaceId, memberId, type);
+
+        Document document = type == DocumentType.TASK
+                ? Document.task(resolvedWorkSpaceId, parentId, memberId)
+                : Document.note(resolvedWorkSpaceId, parentId, memberId);
         documentRepository.save(document);
         return document.getId();
     }
@@ -90,6 +92,7 @@ public class DocumentCommandService {
         if (parentId != null) {
             Document parent = findParent(parentId, type);
             validateParticipant(parent.getWorkSpaceId(), memberId, type);
+            validateMove(document, parent);
             document.moveTo(parent);
         }
 
@@ -133,6 +136,10 @@ public class DocumentCommandService {
         }
 
         imageUtils.deleteAllContentImages(document.getSearchContent());
+        documentRepository.findAllByParentId(documentId).forEach(child -> {
+            child.reparentTo(document.getParentId());
+            documentRepository.save(child);
+        });
         documentRepository.delete(document);
     }
 
@@ -204,11 +211,28 @@ public class DocumentCommandService {
     }
 
     private Document findParent(final Long parentId, final DocumentType type) {
-        if (!type.requiresParent() || parentId == null) {
+        if (parentId == null) {
             throw new NoSuchElementException(type.parentNotFoundMessage());
         }
-        return documentRepository.findByIdAndType(parentId, type.parentType())
+        return documentRepository.findById(parentId)
+                .filter(parent -> parent.getType() != DocumentType.WORKSPACE_HOME)
                 .orElseThrow(() -> new NoSuchElementException(type.parentNotFoundMessage()));
+    }
+
+    private void validateMove(final Document document, final Document newParent) {
+        if (!document.getWorkSpaceId().equals(newParent.getWorkSpaceId())) {
+            throw new IllegalArgumentException("다른 Workspace 로 문서를 이동할 수 없습니다");
+        }
+
+        Document current = newParent;
+        while (current != null) {
+            if (current.getId().equals(document.getId())) {
+                throw new IllegalArgumentException("문서를 자기 자신이나 하위 문서 아래로 이동할 수 없습니다");
+            }
+            current = current.getParentId() == null
+                    ? null
+                    : documentRepository.findById(current.getParentId()).orElse(null);
+        }
     }
 
     private void validateParticipant(final Long workSpaceId, final Long memberId, final DocumentType type) {
