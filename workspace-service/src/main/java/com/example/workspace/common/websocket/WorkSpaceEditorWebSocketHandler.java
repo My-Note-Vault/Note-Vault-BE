@@ -29,6 +29,7 @@ public class WorkSpaceEditorWebSocketHandler extends BinaryWebSocketHandler {
     private static final int MESSAGE_SEARCH_PROJECTION = 5;
     private static final int MESSAGE_CRDT_SYNC_REQUEST = 6;
     private static final int MESSAGE_CRDT_SNAPSHOT = 7;
+    private static final int MESSAGE_DOCUMENT_UPDATE_WITH_ACTIVITY = 8;
 
     private final SessionRegistry sessionRegistry;
     private final RedisPublisher redisPublisher;
@@ -76,8 +77,11 @@ public class WorkSpaceEditorWebSocketHandler extends BinaryWebSocketHandler {
         readOnlyBuffer.get(payload);
 
         int messageType = readMessageType(payload);
-        if (messageType == MESSAGE_DOCUMENT_UPDATE) {
-            ClientCrdtUpdate update = decodeDocumentUpdate(payload);
+        if (messageType == MESSAGE_DOCUMENT_UPDATE || messageType == MESSAGE_DOCUMENT_UPDATE_WITH_ACTIVITY) {
+            ClientCrdtUpdate update = decodeDocumentUpdate(
+                    payload,
+                    messageType == MESSAGE_DOCUMENT_UPDATE_WITH_ACTIVITY
+            );
             DocumentCommandService.CommittedCrdtUpdate committed =
                     documentCommandService.appendDocumentDelta(
                             memberId,
@@ -85,6 +89,7 @@ public class WorkSpaceEditorWebSocketHandler extends BinaryWebSocketHandler {
                             documentId,
                             persistenceDocumentType(documentType),
                             update.clientUpdateId(),
+                            update.insertedCharacterCount(),
                             update.crdtUpdate()
                     );
             sessionRegistry.sendTo(
@@ -267,18 +272,20 @@ public class WorkSpaceEditorWebSocketHandler extends BinaryWebSocketHandler {
         }
     }
 
-    private ClientCrdtUpdate decodeDocumentUpdate(final byte[] payload) {
+    private ClientCrdtUpdate decodeDocumentUpdate(final byte[] payload, final boolean includesActivity) {
         int[] cursor = {0};
-        if (readVarUint(payload, cursor) != MESSAGE_DOCUMENT_UPDATE) {
+        int messageType = readVarUint(payload, cursor);
+        if (messageType != MESSAGE_DOCUMENT_UPDATE && messageType != MESSAGE_DOCUMENT_UPDATE_WITH_ACTIVITY) {
             throw new IllegalArgumentException("Invalid document update message");
         }
         String clientUpdateId = readVarString(payload, cursor);
+        int insertedCharacterCount = includesActivity ? readVarUint(payload, cursor) : 0;
         int length = readVarUint(payload, cursor);
         if (length < 0 || cursor[0] + length != payload.length) {
             throw new IllegalArgumentException("Invalid document update length");
         }
         byte[] crdtUpdate = Arrays.copyOfRange(payload, cursor[0], cursor[0] + length);
-        return new ClientCrdtUpdate(clientUpdateId, crdtUpdate);
+        return new ClientCrdtUpdate(clientUpdateId, insertedCharacterCount, crdtUpdate);
     }
 
     private long decodeCrdtSyncRequest(final byte[] payload) {
@@ -377,7 +384,7 @@ public class WorkSpaceEditorWebSocketHandler extends BinaryWebSocketHandler {
         output.writeBytes(bytes);
     }
 
-    private record ClientCrdtUpdate(String clientUpdateId, byte[] crdtUpdate) {
+    private record ClientCrdtUpdate(String clientUpdateId, int insertedCharacterCount, byte[] crdtUpdate) {
     }
 
     private record SearchProjection(long revision, String content, byte[] crdtState) {

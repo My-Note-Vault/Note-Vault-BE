@@ -5,6 +5,8 @@ import com.example.common.file.image.ImageUtils;
 import com.example.workspace.document.command.domain.Document;
 import com.example.workspace.document.command.domain.DocumentDelta;
 import com.example.workspace.document.command.domain.DocumentDeltaRepository;
+import com.example.workspace.document.command.domain.DocumentEditActivity;
+import com.example.workspace.document.command.domain.DocumentEditActivityRepository;
 import com.example.workspace.document.command.domain.DocumentRepository;
 import com.example.workspace.document.command.domain.DocumentType;
 import com.example.workspace.task.command.domain.value.Status;
@@ -16,14 +18,19 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.time.LocalDate;
+import java.time.ZoneId;
 import java.util.NoSuchElementException;
 
 @RequiredArgsConstructor
 @Service
 public class DocumentCommandService {
 
+    private static final ZoneId ACTIVITY_ZONE = ZoneId.of("Asia/Seoul");
+
     private final DocumentRepository documentRepository;
     private final DocumentDeltaRepository documentDeltaRepository;
+    private final DocumentEditActivityRepository documentEditActivityRepository;
     private final ParticipantRepository participantRepository;
     private final WorkSpaceRepository workSpaceRepository;
     private final ImageUtils imageUtils;
@@ -150,6 +157,7 @@ public class DocumentCommandService {
             final Long documentId,
             final DocumentType type,
             final String clientUpdateId,
+            final int insertedCharacterCount,
             final byte[] crdtUpdate
     ) {
         Document document = documentRepository.findWithLockByIdAndType(documentId, type)
@@ -170,6 +178,12 @@ public class DocumentCommandService {
                     DocumentDelta delta = documentDeltaRepository.save(
                             new DocumentDelta(document, revision, clientUpdateId, crdtUpdate)
                     );
+                    if (insertedCharacterCount > 0) {
+                        documentEditActivityRepository.save(new DocumentEditActivity(
+                                documentId, memberId, clientUpdateId,
+                                insertedCharacterCount, LocalDate.now(ACTIVITY_ZONE)
+                        ));
+                    }
                     documentRepository.save(document);
                     return new CommittedCrdtUpdate(
                             delta.getRevision(),
