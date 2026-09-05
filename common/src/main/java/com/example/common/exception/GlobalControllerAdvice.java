@@ -1,6 +1,5 @@
 package com.example.common.exception;
 
-import com.example.common.ai.AiSummaryRateLimitExceededException;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.ExceptionHandler;
@@ -37,15 +36,6 @@ public class GlobalControllerAdvice {
 
         GlobalErrorFormat error = GlobalErrorFormat.of(FORBIDDEN_ERROR, ex.getMessage());
         return ResponseEntity.status(403)
-                .body(error);
-    }
-
-    @ExceptionHandler(value = AiSummaryRateLimitExceededException.class)
-    public ResponseEntity<GlobalErrorFormat> handleRateLimitExceptions(final Exception ex) {
-        log.error("error: {}", ex.getMessage(), ex);
-
-        GlobalErrorFormat error = GlobalErrorFormat.of(RATE_LIMIT_ERROR, ex.getMessage());
-        return ResponseEntity.status(429)
                 .body(error);
     }
 
