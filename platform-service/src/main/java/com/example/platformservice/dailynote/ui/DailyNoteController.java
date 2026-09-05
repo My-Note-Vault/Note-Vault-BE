@@ -6,15 +6,14 @@ import com.example.platformservice.dailynote.application.request.AddPlanRequest;
 import com.example.platformservice.dailynote.application.request.DeletePlanRequest;
 import com.example.platformservice.dailynote.application.request.EditDailyNoteRequest;
 import com.example.platformservice.dailynote.application.request.EditPlanRequest;
+import com.example.platformservice.dailynote.application.request.MoveDailyNoteRequest;
 import com.example.platformservice.dailynote.application.response.DailyNoteDetailResponse;
-import com.example.platformservice.dailynote.application.response.DailyNoteSimpleResponse;
+import com.example.platformservice.dailynote.application.response.DailyNoteListResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDate;
-import java.util.List;
-
 import static com.example.platformservice.PlatformConst.DAILY_NOTES_BASIC_PATH;
 
 
@@ -50,9 +49,18 @@ public class DailyNoteController {
     }
 
     @GetMapping("/all")
-    public ResponseEntity<List<DailyNoteSimpleResponse>> findAllDailyNotes(@AuthMemberId final Long authorId) {
-        List<DailyNoteSimpleResponse> dailyNoteSimpleResponses = dailyNoteService.findAllDailyNotesByAuthorId(authorId);
-        return ResponseEntity.ok(dailyNoteSimpleResponses);
+    public ResponseEntity<DailyNoteListResponse> findAllDailyNotes(@AuthMemberId final Long authorId) {
+        return ResponseEntity.ok(dailyNoteService.findAllDailyNotesByAuthorId(authorId));
+    }
+
+    @PatchMapping("/{dailyNoteId}/folder")
+    public ResponseEntity<Void> moveDailyNote(
+            @PathVariable final Long dailyNoteId,
+            @RequestBody final MoveDailyNoteRequest request,
+            @AuthMemberId final Long memberId
+    ) {
+        dailyNoteService.moveDailyNote(memberId, dailyNoteId, request.getFolderId());
+        return ResponseEntity.noContent().build();
     }
 
     @PatchMapping("/{dailyNoteId}")

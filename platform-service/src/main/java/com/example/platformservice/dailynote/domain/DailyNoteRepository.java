@@ -38,4 +38,6 @@ AND d.authorId = :authorId
     Optional<DailyNote> findByIdAndAuthorId(Long id, Long authorId);
 
     Optional<DailyNote> findByAuthorIdAndLogicalDate(Long authorId, LocalDate logicalDate);
+
+    List<DailyNote> findAllByAuthorIdAndFolderId(Long authorId, Long folderId);
 }

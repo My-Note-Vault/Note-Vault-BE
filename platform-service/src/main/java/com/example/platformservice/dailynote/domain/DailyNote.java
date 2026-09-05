@@ -28,6 +28,9 @@ public class DailyNote extends Auditable {
 
     private LocalDate logicalDate;
 
+    @Column(name = "folder_id")
+    private Long folderId;
+
     @Column(columnDefinition = "TEXT")
     private String content;
 
@@ -45,6 +48,10 @@ public class DailyNote extends Auditable {
 
     public void edit(final String content) {
         this.content = (content == null ? this.content : content);
+    }
+
+    public void moveToFolder(final Long folderId) {
+        this.folderId = folderId;
     }
 
     public static LocalDate convertToLogicalToday(final DayStartTime dayStartTime) {

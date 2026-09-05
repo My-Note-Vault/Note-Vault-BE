@@ -2,6 +2,8 @@ package com.example.platformservice.dailynote.application;
 
 import com.example.common.file.image.ImageUtils;
 import com.example.platformservice.dailynote.application.response.DailyNoteDetailResponse;
+import com.example.platformservice.dailynote.application.response.DailyNoteFolderResponse;
+import com.example.platformservice.dailynote.application.response.DailyNoteListResponse;
 import com.example.platformservice.dailynote.application.response.DailyNoteSimpleResponse;
 import com.example.platformservice.dailynote.application.response.PlanResponse;
 import com.example.platformservice.dailynote.domain.*;
@@ -24,6 +26,7 @@ import static com.example.platformservice.PlatformConst.*;
 public class DailyNoteService {
 
     private final DailyNoteRepository dailyNoteRepository;
+    private final DailyNoteFolderRepository dailyNoteFolderRepository;
     private final PlanRepository planRepository;
     private final DailyNotePlanRepository dailyNotePlanRepository;
 
@@ -180,11 +183,25 @@ public class DailyNoteService {
     }
 
     @Transactional(readOnly = true)
-    public List<DailyNoteSimpleResponse> findAllDailyNotesByAuthorId(final Long authorId) {
+    public DailyNoteListResponse findAllDailyNotesByAuthorId(final Long authorId) {
         List<DailyNote> allDailyNotes = dailyNoteRepository.findAllByAuthorIdOrderByLogicalDateAsc(authorId);
-
-        return allDailyNotes.stream()
+        List<DailyNoteSimpleResponse> notes = allDailyNotes.stream()
                 .map(DailyNoteSimpleResponse::from)
                 .toList();
+        List<DailyNoteFolderResponse> folders = dailyNoteFolderRepository.findAllByAuthorIdOrderByNameAsc(authorId).stream()
+                .map(DailyNoteFolderResponse::from)
+                .toList();
+        return new DailyNoteListResponse(folders, notes);
+    }
+
+    @Transactional
+    public void moveDailyNote(final Long authorId, final Long dailyNoteId, final Long folderId) {
+        DailyNote dailyNote = dailyNoteRepository.findByIdAndAuthorId(dailyNoteId, authorId)
+                .orElseThrow(() -> new NoSuchElementException(NO_DAILY_NOTE_MESSAGE));
+        if (folderId != null) {
+            dailyNoteFolderRepository.findByIdAndAuthorId(folderId, authorId)
+                    .orElseThrow(() -> new NoSuchElementException("일치하는 DailyNote 폴더가 없습니다"));
+        }
+        dailyNote.moveToFolder(folderId);
     }
 }

@@ -12,8 +12,9 @@ public class DailyNoteSimpleResponse {
 
     private final Long dailyNoteId;
     private final LocalDate logicalDate;
+    private final Long folderId;
 
     public static DailyNoteSimpleResponse from(DailyNote dailyNote) {
-        return new DailyNoteSimpleResponse(dailyNote.getId(), dailyNote.getLogicalDate());
+        return new DailyNoteSimpleResponse(dailyNote.getId(), dailyNote.getLogicalDate(), dailyNote.getFolderId());
     }
 }
