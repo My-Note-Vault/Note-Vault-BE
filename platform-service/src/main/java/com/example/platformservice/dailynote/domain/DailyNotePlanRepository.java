@@ -6,6 +6,8 @@ import org.springframework.data.jpa.repository.Query;
 import java.util.List;
 
 public interface DailyNotePlanRepository extends JpaRepository<DailyNotePlan, Long> {
+    boolean existsByDailyNote_IdAndPlan_Id(Long dailyNoteId, Long planId);
+
     void deleteAllByPlan(Plan plan);
 
     void deleteAllByDailyNote(DailyNote dailyNote);

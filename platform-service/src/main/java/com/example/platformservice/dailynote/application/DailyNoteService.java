@@ -44,7 +44,7 @@ public class DailyNoteService {
 
         DailyNotePlan dailyNotePlan = new DailyNotePlan(dailyNote, plan);
         dailyNotePlanRepository.save(dailyNotePlan);
-        return dailyNotePlan.getId();
+        return plan.getId();
     }
 
     @Transactional
@@ -60,6 +60,10 @@ public class DailyNoteService {
                 .orElseThrow(() -> new NoSuchElementException(NO_DAILY_NOTE_MESSAGE));
         if (!dailyNote.getAuthorId().equals(authorId)) {
             throw new IllegalArgumentException(ACCESS_DENIED);
+        }
+
+        if (!dailyNotePlanRepository.existsByDailyNote_IdAndPlan_Id(dailyNoteId, planId)) {
+            throw new NoSuchElementException(NO_PLAN_MESSAGE);
         }
 
         Plan plan = planRepository.findById(planId)
