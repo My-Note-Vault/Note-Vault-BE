@@ -9,6 +9,7 @@ import com.example.platformservice.auth.feignclient.GoogleTokenClient;
 import com.example.platformservice.auth.feignclient.GoogleUserClient;
 import com.example.platformservice.auth.ui.dto.TokenResponse;
 import com.example.platformservice.member.domain.Member;
+import com.example.platformservice.member.application.MemberIdentityGenerator;
 import com.example.platformservice.member.infra.MemberRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
@@ -44,6 +45,7 @@ public class OAuthService {
     private final GoogleTokenClient googleTokenClient;
     private final GoogleUserClient googleUserClient;
     private final MemberRepository memberRepository;
+    private final MemberIdentityGenerator memberIdentityGenerator;
     private final JwtService jwtService;
     private final RefreshTokenRepository refreshTokenRepository;
 
@@ -108,12 +110,20 @@ public class OAuthService {
         String providerUserId = (String) userInfo.get("id");
 
         // 3. 회원 조회 또는 가입
-        Member member = memberRepository.findByEmail(email)
-                .orElseGet(() ->
-                        memberRepository.save(
-                                Member.googleSignUp(email, name, providerUserId)
-                        )
-                );
+        Member member = memberRepository.findByEmail(email).orElse(null);
+        if (member == null) {
+            member = memberRepository.save(
+                    Member.googleSignUp(
+                            email,
+                            name,
+                            providerUserId,
+                            memberIdentityGenerator.generateNickname(),
+                            memberIdentityGenerator.generateUniqueTag()
+                    )
+            );
+        } else if (member.getMemberTag() == null || member.getMemberTag().isBlank()) {
+            member.assignMemberTag(memberIdentityGenerator.generateUniqueTag());
+        }
 
         return new OAuthUserInfo(
                 member.getId(),

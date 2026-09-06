@@ -29,6 +29,10 @@ public class Member extends Auditable {
     private String name;
 
     private String nickname;
+
+    @Column(nullable = false, unique = true, length = 6)
+    private String memberTag;
+
     private String profileImageKey;
 
     @Column(nullable = false)
@@ -51,6 +55,7 @@ public class Member extends Auditable {
             final Role role,
             final String name,
             final String nickname,
+            final String memberTag,
             final Provider provider,
             final String providerUserId,
             final String email,
@@ -59,6 +64,7 @@ public class Member extends Auditable {
         this.role = role;
         this.name = name;
         this.nickname = nickname;
+        this.memberTag = memberTag;
         this.provider = provider;
         this.providerUserId = providerUserId;
         this.email = email;
@@ -70,12 +76,15 @@ public class Member extends Auditable {
     public static Member googleSignUp(
             final String email,
             final String name,
-            final String providerUserId
+            final String providerUserId,
+            final String nickname,
+            final String memberTag
     ) {
         return new Member(
                 Role.USER,
                 name,
-                "",
+                nickname,
+                memberTag,
                 Provider.GOOGLE,
                 providerUserId,
                 email,
@@ -83,9 +92,28 @@ public class Member extends Auditable {
         );
     }
 
+    /**
+     * 개발 도구와 기존 호출부 호환용 팩토리다. 실제 OAuth 가입에서는 생성기를 통해
+     * 닉네임과 태그를 전달하는 오버로드를 사용한다.
+     */
+    public static Member googleSignUp(
+            final String email,
+            final String name,
+            final String providerUserId
+    ) {
+        String legacyTag = String.format("%06X", providerUserId.hashCode() & 0xFFFFFF);
+        return googleSignUp(email, name, providerUserId, "", legacyTag);
+    }
+
     public void completeProfile(final String nickname, final int dayStartHour, final int datStartMinute) {
-        this.nickname = nickname;
+        this.nickname = nickname.trim();
         this.dayStartTime = new DayStartTime(dayStartHour, datStartMinute);
+    }
+
+    public void assignMemberTag(final String memberTag) {
+        if (this.memberTag == null || this.memberTag.isBlank()) {
+            this.memberTag = memberTag;
+        }
     }
 
     public void updateProfileImageKey(final String profileImageKey) {

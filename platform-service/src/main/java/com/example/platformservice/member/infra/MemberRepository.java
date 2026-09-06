@@ -14,6 +14,8 @@ public interface MemberRepository extends JpaRepository<Member, Long> {
 
     Optional<Member> findByEmail(String email);
 
+    boolean existsByMemberTag(String memberTag);
+
     List<Member> findAllByDayStartTime(DayStartTime dayStartTime);
 
     @Query("""

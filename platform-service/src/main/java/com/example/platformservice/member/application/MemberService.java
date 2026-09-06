@@ -69,6 +69,7 @@ public class MemberService {
         return new MemberProfileResponse(
                 member.getName(),
                 member.getNickname(),
+                member.getMemberTag(),
                 member.getProfileImageKey(),
                 member.getDayStartTime()
         );
