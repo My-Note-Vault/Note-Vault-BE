@@ -26,7 +26,23 @@ public class OAuthController {
 
     @GetMapping("/login/google")
     public Map<String, String> loginGoogle() throws Exception {
-        return oAuthService.processLogin();
+        return oAuthService.processGoogleLogin();
+    }
+
+    @GetMapping("/login/kakao")
+    public Map<String, String> loginKakao() throws Exception {
+        return oAuthService.processKakaoLogin();
+    }
+
+    @GetMapping("/callback/kakao")
+    public ResponseEntity<Map<String, Object>> callbackFromKakao(
+            @RequestParam("code") String code,
+            @RequestParam("state") String state
+    ) {
+        OAuthUserInfo userInfo = oAuthService.handleKakaoCallback(code, state);
+        TokenResponse tokenResponse = oAuthService.issueTokens(userInfo);
+
+        return ResponseEntity.ok(Map.of("token", tokenResponse, "user", userInfo));
     }
 
     @GetMapping("/callback/google")

@@ -2,6 +2,7 @@ package com.example.platformservice.member.infra;
 
 import com.example.platformservice.member.domain.value.DayStartTime;
 import com.example.platformservice.member.domain.Member;
+import com.example.platformservice.member.domain.value.Provider;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -13,6 +14,8 @@ import java.util.Optional;
 public interface MemberRepository extends JpaRepository<Member, Long> {
 
     Optional<Member> findByEmail(String email);
+
+    Optional<Member> findByProviderAndProviderUserId(Provider provider, String providerUserId);
 
     boolean existsByMemberTag(String memberTag);
 

@@ -16,6 +16,10 @@ import static com.example.platformservice.PlatformConst.DAILY_NOTES_BASIC_PATH;
 
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
+@Table(uniqueConstraints = @UniqueConstraint(
+        name = "uk_member_provider_user_id",
+        columnNames = {"provider", "provider_user_id"}
+))
 @Entity
 public class Member extends Auditable {
 
@@ -54,7 +58,7 @@ public class Member extends Auditable {
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     private Provider provider;
-    @Column(nullable = false)
+    @Column(name = "provider_user_id", nullable = false)
     private String providerUserId;
 
     @Embedded
@@ -99,6 +103,25 @@ public class Member extends Auditable {
                 nickname,
                 memberTag,
                 Provider.GOOGLE,
+                providerUserId,
+                email,
+                ""
+        );
+    }
+
+    public static Member kakaoSignUp(
+            final String email,
+            final String name,
+            final String providerUserId,
+            final String nickname,
+            final String memberTag
+    ) {
+        return new Member(
+                Role.USER,
+                name,
+                nickname,
+                memberTag,
+                Provider.KAKAO,
                 providerUserId,
                 email,
                 ""
