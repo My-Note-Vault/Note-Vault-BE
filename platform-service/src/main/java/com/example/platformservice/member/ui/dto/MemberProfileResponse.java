@@ -13,4 +13,5 @@ public class MemberProfileResponse {
     private final String memberTag;
     private final String profileImageKey;
     private final DayStartTime dayStartTime;
+    private final PayoutAccountResponse payoutAccount;
 }

@@ -49,6 +49,36 @@ public class MemberController {
         return ResponseEntity.noContent().build();
     }
 
+    @GetMapping("/payout-account")
+    public ResponseEntity<PayoutAccountResponse> getPayoutAccount(
+            @AuthMemberId final Long memberId
+    ) {
+        return ResponseEntity.ok(memberService.getPayoutAccount(memberId));
+    }
+
+    @PostMapping("/payout-account/verifications")
+    public ResponseEntity<PayoutAccountVerificationResponse> verifyPayoutAccount(
+            @Valid @RequestBody final UpdatePayoutAccountRequest request,
+            @AuthMemberId final Long memberId
+    ) {
+        return ResponseEntity.ok(memberService.verifyPayoutAccount(memberId, request));
+    }
+
+    @PutMapping("/payout-account")
+    public ResponseEntity<Void> saveVerifiedPayoutAccount(
+            @Valid @RequestBody final SavePayoutAccountRequest request,
+            @AuthMemberId final Long memberId
+    ) {
+        memberService.saveVerifiedPayoutAccount(memberId, request);
+        return ResponseEntity.noContent().build();
+    }
+
+    @DeleteMapping("/payout-account")
+    public ResponseEntity<Void> deletePayoutAccount(@AuthMemberId final Long memberId) {
+        memberService.deletePayoutAccount(memberId);
+        return ResponseEntity.noContent().build();
+    }
+
     @PostMapping("/profile-image/upload-url")
     public ResponseEntity<GenerateProfileImageUploadUrlResponse> generateProfileImageUploadUrl(
             @Valid @RequestBody final GenerateProfileImageUploadUrlRequest request,
