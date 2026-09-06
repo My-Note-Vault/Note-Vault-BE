@@ -39,7 +39,7 @@ public class DailyDrawService {
                 join member m on m.id = a.member_id
                 where a.activity_date = ? and m.is_deleted = false
                 group by a.member_id
-                having sum(a.inserted_character_count) >= 200
+                having sum(a.inserted_character_count) >= 100
                 order by a.member_id
                 """, Long.class, date);
     }
@@ -47,6 +47,7 @@ public class DailyDrawService {
     @Transactional(readOnly = true)
     public DrawOverviewResponse overview(Long memberId) {
         LocalDate today = LocalDate.now(ZoneId.of("Asia/Seoul"));
+        LocalDate yesterday = today.minusDays(1);
         List<Member> newMembers = memberRepository.findActiveMembersCreatedBetween(
                 today.atStartOfDay(), today.plusDays(1).atStartOfDay());
         List<Long> documentWriterIds = writerMemberIds(today);
@@ -58,7 +59,18 @@ public class DailyDrawService {
         Map<LocalDate, List<DailyDrawResult>> grouped = new LinkedHashMap<>();
         resultRepository.findTop60ByOrderByDrawDateDescCategoryAsc().forEach(r ->
                 grouped.computeIfAbsent(r.getDrawDate(), key -> new ArrayList<>()).add(r));
-        List<DrawOverviewResponse.DrawDay> days = grouped.values().stream().map(results ->
+        if (!grouped.containsKey(yesterday)) {
+            List<Member> yesterdayNewMembers = memberRepository.findActiveMembersCreatedBetween(
+                    yesterday.atStartOfDay(), today.atStartOfDay());
+            List<Long> yesterdayWriterIds = writerMemberIds(yesterday);
+            grouped.put(yesterday, List.of(
+                    emptyResult(yesterday, DrawCategory.NEW_MEMBER, yesterdayNewMembers.size(), today.atStartOfDay()),
+                    emptyResult(yesterday, DrawCategory.DOCUMENT_WRITER, yesterdayWriterIds.size(), today.atStartOfDay())
+            ));
+        }
+        List<DrawOverviewResponse.DrawDay> days = grouped.entrySet().stream()
+                .sorted(Map.Entry.<LocalDate, List<DailyDrawResult>>comparingByKey().reversed())
+                .map(Map.Entry::getValue).map(results ->
                 new DrawOverviewResponse.DrawDay(
                         results.getFirst().getDrawDate(), results.getFirst().getDrawnAt(),
                         results.stream().map(r ->
@@ -66,6 +78,12 @@ public class DailyDrawService {
                                         r.getWinnerNameSnapshot(), r.getEligibleCount())).toList()
                 )).toList();
         return new DrawOverviewResponse(eligibleCounts, days);
+    }
+
+    private DailyDrawResult emptyResult(LocalDate date, DrawCategory category, int eligibleCount,
+                                        LocalDateTime drawnAt) {
+        return new DailyDrawResult(date, category, null, null, eligibleCount,
+                memberRepository.countActiveMembers(), drawnAt);
     }
 
     private List<Member> membersByIds(List<Long> ids) {
