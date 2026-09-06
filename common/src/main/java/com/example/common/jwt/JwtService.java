@@ -13,6 +13,7 @@ import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
 import java.util.Date;
+import java.util.UUID;
 
 @Service
 public class JwtService {
@@ -74,6 +75,7 @@ public class JwtService {
             final long expiration
     ) {
         return Jwts.builder()
+                .setId(UUID.randomUUID().toString())
                 .setSubject(email)
                 .claim(MEMBER_ID_CLAIM, memberId)
                 .claim(TOKEN_TYPE_CLAIM, tokenType)

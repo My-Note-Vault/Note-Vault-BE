@@ -249,12 +249,13 @@ public class OAuthService {
     public TokenResponse issueTokens(OAuthUserInfo userInfo) {
         String accessToken = jwtService.createAccessToken(userInfo.getUserId(), userInfo.getEmail());
         String refreshToken = jwtService.createRefreshToken(userInfo.getUserId(), userInfo.getEmail());
+        String refreshTokenHash = hashToken(refreshToken);
 
         refreshTokenRepository.findByMemberId(userInfo.getUserId())
                 .ifPresentOrElse(
-                        savedToken -> savedToken.update(refreshToken, jwtService.getExpiration(refreshToken)),
+                        savedToken -> savedToken.update(refreshTokenHash, jwtService.getExpiration(refreshToken)),
                         () -> refreshTokenRepository.save(
-                                RefreshToken.create(userInfo.getUserId(), refreshToken, jwtService.getExpiration(refreshToken))
+                                RefreshToken.create(userInfo.getUserId(), refreshTokenHash, jwtService.getExpiration(refreshToken))
                         )
                 );
         return new TokenResponse(accessToken, refreshToken);
@@ -269,7 +270,10 @@ public class OAuthService {
         RefreshToken savedRefreshToken = refreshTokenRepository.findByMemberId(memberId)
                 .orElseThrow(() -> new UnauthorizedException("저장된 refresh 토큰이 없습니다"));
 
-        if (!savedRefreshToken.getToken().equals(refreshToken)) {
+        if (!MessageDigest.isEqual(
+                savedRefreshToken.getToken().getBytes(StandardCharsets.US_ASCII),
+                hashToken(refreshToken).getBytes(StandardCharsets.US_ASCII)
+        )) {
             throw new UnauthorizedException("저장된 refresh 토큰과 일치하지 않습니다");
         }
         Member member = memberRepository.findById(memberId)
@@ -278,10 +282,35 @@ public class OAuthService {
         String newAccessToken = jwtService.createAccessToken(member.getId(), member.getEmail());
         String newRefreshToken = jwtService.createRefreshToken(member.getId(), member.getEmail());
 
-        savedRefreshToken.update(newRefreshToken, jwtService.getExpiration(newRefreshToken));
+        savedRefreshToken.update(hashToken(newRefreshToken), jwtService.getExpiration(newRefreshToken));
         refreshTokenRepository.save(savedRefreshToken);
 
         return new TokenResponse(newAccessToken, newRefreshToken);
+    }
+
+    @Transactional
+    public void revokeRefreshToken(final String refreshToken) {
+        if (refreshToken == null || jwtService.isInvalidToken(refreshToken) || !jwtService.isRefreshToken(refreshToken)) {
+            return;
+        }
+
+        Long memberId = jwtService.getMemberId(refreshToken);
+        refreshTokenRepository.findByMemberId(memberId)
+                .filter(saved -> MessageDigest.isEqual(
+                        saved.getToken().getBytes(StandardCharsets.US_ASCII),
+                        hashToken(refreshToken).getBytes(StandardCharsets.US_ASCII)
+                ))
+                .ifPresent(refreshTokenRepository::delete);
+    }
+
+    private String hashToken(final String token) {
+        try {
+            byte[] digest = MessageDigest.getInstance("SHA-256")
+                    .digest(token.getBytes(StandardCharsets.UTF_8));
+            return Base64.getUrlEncoder().withoutPadding().encodeToString(digest);
+        } catch (NoSuchAlgorithmException exception) {
+            throw new IllegalStateException("SHA-256을 사용할 수 없습니다", exception);
+        }
     }
 
     private record OAuthLoginRequest(String state, String codeChallenge) {
