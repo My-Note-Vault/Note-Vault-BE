@@ -4,18 +4,14 @@ import com.example.common.exception.UnauthorizedException;
 import com.example.common.file.image.ImageUtils;
 import com.example.common.file.image.UploadImageResponse;
 import com.example.platformservice.member.domain.Member;
-import com.example.platformservice.member.domain.PayoutAccountVerification;
 import com.example.platformservice.member.domain.value.DayStartTime;
 import com.example.platformservice.member.infra.MemberRepository;
-import com.example.platformservice.member.infra.PayoutAccountVerificationRepository;
 import com.example.platformservice.member.ui.dto.CompleteProfileRequest;
 import com.example.platformservice.member.ui.dto.GenerateProfileImageUploadUrlResponse;
 import com.example.platformservice.member.ui.dto.MemberProfileResponse;
 import com.example.platformservice.member.ui.dto.ProfileImageResponse;
 import com.example.platformservice.member.ui.dto.PayoutAccountResponse;
 import com.example.platformservice.member.ui.dto.UpdatePayoutAccountRequest;
-import com.example.platformservice.member.ui.dto.SavePayoutAccountRequest;
-import com.example.platformservice.member.ui.dto.PayoutAccountVerificationResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -30,8 +26,6 @@ public class MemberService {
 
     private final MemberRepository memberRepository;
     private final ImageUtils imageUtils;
-    private final PayoutAccountVerificationService payoutAccountVerificationService;
-    private final PayoutAccountVerificationRepository payoutAccountVerificationRepository;
 
     @Transactional
     public void completeProfile(
@@ -158,57 +152,24 @@ public class MemberService {
 
         return new PayoutAccountResponse(
                 true,
-                member.hasVerifiedPayoutAccount(),
                 member.getPayoutBankCode(),
                 member.getPayoutBankCode().getName(),
-                maskAccountNumber(member.getPayoutAccountNumber()),
-                maskHolderName(member.getPayoutAccountHolderName())
+                maskAccountNumber(member.getPayoutAccountNumber())
         );
     }
 
-    public PayoutAccountVerificationResponse verifyPayoutAccount(
+    @Transactional
+    public void updatePayoutAccount(
             final Long memberId,
             final UpdatePayoutAccountRequest request
     ) {
-        validateMemberExists(memberId);
         String normalizedAccountNumber = request.getAccountNumber().replace("-", "");
         if (normalizedAccountNumber.length() < 6 || normalizedAccountNumber.length() > 14) {
             throw new IllegalArgumentException("계좌번호는 숫자 6~14자리여야 합니다");
         }
 
-        PayoutAccountVerificationService.VerifiedAccount verifiedAccount =
-                payoutAccountVerificationService.verify(request.getBankCode(), normalizedAccountNumber);
-        PayoutAccountVerification verification = payoutAccountVerificationRepository.save(
-                PayoutAccountVerification.create(
-                        memberId,
-                        request.getBankCode(),
-                        normalizedAccountNumber,
-                        verifiedAccount.holderName()
-                )
-        );
-
-        return new PayoutAccountVerificationResponse(
-                verification.getToken(),
-                verification.getBankCode().getName(),
-                maskAccountNumber(verification.getAccountNumber()),
-                maskHolderName(verification.getHolderName()),
-                verification.getExpiresAt()
-        );
-    }
-
-    @Transactional
-    public void saveVerifiedPayoutAccount(final Long memberId, final SavePayoutAccountRequest request) {
-        PayoutAccountVerification verification = payoutAccountVerificationRepository
-                .findByTokenAndMemberId(request.getVerificationToken(), memberId)
-                .orElseThrow(() -> new IllegalArgumentException("유효하지 않은 계좌 인증입니다"));
-        verification.consume();
-
         Member member = findMember(memberId);
-        member.updateVerifiedPayoutAccount(
-                verification.getBankCode(),
-                verification.getAccountNumber(),
-                verification.getHolderName()
-        );
+        member.updatePayoutAccount(request.getBankCode(), normalizedAccountNumber);
     }
 
     @Transactional
@@ -223,21 +184,6 @@ public class MemberService {
         }
         return "*".repeat(accountNumber.length() - 4)
                 + accountNumber.substring(accountNumber.length() - 4);
-    }
-
-    private String maskHolderName(final String holderName) {
-        if (holderName == null || holderName.isBlank()) {
-            return null;
-        }
-        if (holderName.length() == 1) {
-            return holderName;
-        }
-        if (holderName.length() == 2) {
-            return holderName.charAt(0) + "*";
-        }
-        return holderName.charAt(0)
-                + "*".repeat(holderName.length() - 2)
-                + holderName.charAt(holderName.length() - 1);
     }
 
     private void validateMemberExists(final Long memberId) {

@@ -3,7 +3,6 @@ package com.example.platformservice.member.domain;
 import com.example.common.Auditable;
 import com.example.platformservice.member.domain.value.DayStartTime;
 import com.example.platformservice.member.domain.value.BankCode;
-import com.example.platformservice.member.domain.value.PayoutAccountStatus;
 import com.example.platformservice.member.domain.value.Provider;
 import com.example.platformservice.member.domain.value.Role;
 import jakarta.persistence.*;
@@ -45,12 +44,6 @@ public class Member extends Auditable {
     private BankCode payoutBankCode;
 
     private String payoutAccountNumber;
-
-    @Enumerated(EnumType.STRING)
-    private PayoutAccountStatus payoutAccountStatus;
-
-    private String payoutAccountHolderName;
-    private java.time.LocalDateTime payoutAccountVerifiedAt;
 
     @Column(nullable = false)
     private String email;
@@ -156,16 +149,12 @@ public class Member extends Auditable {
         this.profileImageKey = profileImageKey;
     }
 
-    public void updateVerifiedPayoutAccount(
+    public void updatePayoutAccount(
             final BankCode bankCode,
-            final String accountNumber,
-            final String holderName
+            final String accountNumber
     ) {
         this.payoutBankCode = bankCode;
         this.payoutAccountNumber = accountNumber;
-        this.payoutAccountStatus = PayoutAccountStatus.VERIFIED;
-        this.payoutAccountHolderName = holderName;
-        this.payoutAccountVerifiedAt = java.time.LocalDateTime.now();
     }
 
     public boolean hasPayoutAccount() {
@@ -174,16 +163,9 @@ public class Member extends Auditable {
                 && !payoutAccountNumber.isBlank();
     }
 
-    public boolean hasVerifiedPayoutAccount() {
-        return hasPayoutAccount() && payoutAccountStatus == PayoutAccountStatus.VERIFIED;
-    }
-
     public void deletePayoutAccount() {
         this.payoutBankCode = null;
         this.payoutAccountNumber = null;
-        this.payoutAccountStatus = null;
-        this.payoutAccountHolderName = null;
-        this.payoutAccountVerifiedAt = null;
     }
 
 }

@@ -4,13 +4,11 @@ import com.example.platformservice.member.domain.value.BankCode;
 
 public record PayoutAccountResponse(
         boolean configured,
-        boolean verified,
         BankCode bankCode,
         String bankName,
-        String maskedAccountNumber,
-        String maskedHolderName
+        String maskedAccountNumber
 ) {
     public static PayoutAccountResponse empty() {
-        return new PayoutAccountResponse(false, false, null, null, null, null);
+        return new PayoutAccountResponse(false, null, null, null);
     }
 }
