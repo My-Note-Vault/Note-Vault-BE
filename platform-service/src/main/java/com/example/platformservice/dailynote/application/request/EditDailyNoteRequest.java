@@ -8,5 +8,6 @@ import lombok.RequiredArgsConstructor;
 public class EditDailyNoteRequest {
 
     private final String content;
+    private final Long expectedRevision;
 
 }

@@ -9,6 +9,7 @@ import com.example.platformservice.dailynote.application.request.EditPlanRequest
 import com.example.platformservice.dailynote.application.request.MoveDailyNoteRequest;
 import com.example.platformservice.dailynote.application.response.DailyNoteDetailResponse;
 import com.example.platformservice.dailynote.application.response.DailyNoteListResponse;
+import com.example.platformservice.dailynote.application.response.EditDailyNoteResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -64,17 +65,18 @@ public class DailyNoteController {
     }
 
     @PatchMapping("/{dailyNoteId}")
-    public ResponseEntity<Void> editDailyNote(
+    public ResponseEntity<EditDailyNoteResponse> editDailyNote(
             @PathVariable final Long dailyNoteId,
             @RequestBody final EditDailyNoteRequest request,
             @AuthMemberId final Long memberId
     ) {
-        dailyNoteService.editDailyNote(
+        long revision = dailyNoteService.editDailyNote(
                 memberId,
                 dailyNoteId,
-                request.getContent()
+                request.getContent(),
+                request.getExpectedRevision()
         );
-        return ResponseEntity.noContent().build();
+        return ResponseEntity.ok(new EditDailyNoteResponse(revision));
     }
 
     @PostMapping("/{dailyNoteId}/plans")

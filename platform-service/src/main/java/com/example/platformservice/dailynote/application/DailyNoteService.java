@@ -1,6 +1,7 @@
 package com.example.platformservice.dailynote.application;
 
 import com.example.common.file.image.ImageUtils;
+import com.example.common.exception.ConflictException;
 import com.example.platformservice.dailynote.application.response.DailyNoteDetailResponse;
 import com.example.platformservice.dailynote.application.response.DailyNoteFolderResponse;
 import com.example.platformservice.dailynote.application.response.DailyNoteListResponse;
@@ -90,13 +91,34 @@ public class DailyNoteService {
     }
 
     @Transactional
-    public void editDailyNote(final Long authorId, final Long dailyNoteId, final String content) {
+    public long editDailyNote(
+            final Long authorId,
+            final Long dailyNoteId,
+            final String content,
+            final Long expectedRevision
+    ) {
+        if (content == null) {
+            throw new IllegalArgumentException("content는 필수입니다");
+        }
+        if (expectedRevision == null || expectedRevision < 0) {
+            throw new IllegalArgumentException("expectedRevision은 0 이상이어야 합니다");
+        }
+
         DailyNote dailyNote = dailyNoteRepository.findByIdAndAuthorId(dailyNoteId, authorId)
                 .orElseThrow(() -> new NoSuchElementException(NO_DAILY_NOTE_MESSAGE));
 
         String oldContent = dailyNote.getContent();
-        dailyNote.edit(content);
+        int updated = dailyNoteRepository.updateContentIfRevisionMatches(
+                dailyNoteId,
+                authorId,
+                content,
+                expectedRevision
+        );
+        if (updated == 0) {
+            throw new ConflictException("DailyNote가 다른 곳에서 수정되었습니다");
+        }
         imageUtils.deleteRemovedContentImages(oldContent, content);
+        return expectedRevision + 1;
     }
 
     @Transactional
@@ -135,7 +157,7 @@ public class DailyNoteService {
         List<PlanResponse> allIncompletePlans = dailyNotePlanRepository.findAllPlansByDailyNoteId(dailyNote.getId()).stream()
                 .map(PlanResponse::from)
                 .toList();
-        return new DailyNoteDetailResponse(dailyNote.getId(), dailyNote.getContent(), dailyNote.getLogicalDate(), allIncompletePlans);
+        return DailyNoteDetailResponse.from(dailyNote, allIncompletePlans);
     }
 
     @Transactional

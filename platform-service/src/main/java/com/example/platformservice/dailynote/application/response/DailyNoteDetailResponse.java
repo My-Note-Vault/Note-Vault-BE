@@ -13,6 +13,7 @@ public class DailyNoteDetailResponse {
 
     private final Long dailyNoteId;
     private final String content;
+    private final long revision;
     private final LocalDate logicalDate;
     private final List<PlanResponse> plans;
 
@@ -20,6 +21,7 @@ public class DailyNoteDetailResponse {
         return new DailyNoteDetailResponse(
                 dailyNote.getId(),
                 dailyNote.getContent(),
+                dailyNote.getContentRevision(),
                 dailyNote.getLogicalDate(),
                 incompletePlans
         );

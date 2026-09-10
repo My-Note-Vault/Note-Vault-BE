@@ -34,6 +34,9 @@ public class DailyNote extends Auditable {
     @Column(columnDefinition = "TEXT")
     private String content;
 
+    @Column(name = "content_revision", nullable = false)
+    private long contentRevision;
+
     public DailyNote(final Long authorId, final DayStartTime dayStartTime) {
         this(authorId, "", dayStartTime);
     }

@@ -39,6 +39,15 @@ public class GlobalControllerAdvice {
                 .body(error);
     }
 
+    @ExceptionHandler(value = ConflictException.class)
+    public ResponseEntity<GlobalErrorFormat> handleConflictExceptions(final ConflictException ex) {
+        log.warn("conflict: {}", ex.getMessage());
+
+        GlobalErrorFormat error = GlobalErrorFormat.of(CONFLICT_ERROR, ex.getMessage());
+        return ResponseEntity.status(409)
+                .body(error);
+    }
+
     @ExceptionHandler(value = Exception.class)
     public ResponseEntity<GlobalErrorFormat> handleRemainExceptions(final Exception ex) {
         log.error("error: {}", ex.getMessage(), ex);
