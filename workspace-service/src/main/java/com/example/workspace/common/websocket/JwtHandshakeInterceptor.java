@@ -1,7 +1,5 @@
 package com.example.workspace.common.websocket;
 
-import com.example.common.jwt.JwtService;
-import com.example.workspace.workspace.query.WorkSpaceQueryService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.server.ServerHttpRequest;
@@ -14,7 +12,7 @@ import org.springframework.web.socket.server.HandshakeInterceptor;
 import org.springframework.web.util.UriTemplate;
 
 import java.util.Map;
-import java.util.NoSuchElementException;
+import java.util.Optional;
 
 @Component
 @RequiredArgsConstructor
@@ -22,8 +20,7 @@ public class JwtHandshakeInterceptor implements HandshakeInterceptor {
 
     private static final UriTemplate URI_TEMPLATE = new UriTemplate("/ws/workspaces/{workSpaceId}/{documentType}/{documentId}");
 
-    private final JwtService jwtService;
-    private final WorkSpaceQueryService workSpaceQueryService;
+    private final WebSocketTicketStore ticketStore;
 
     @Override
     public boolean beforeHandshake(ServerHttpRequest request, ServerHttpResponse response, WebSocketHandler wsHandler, Map<String, Object> attributes) throws Exception {
@@ -31,13 +28,12 @@ public class JwtHandshakeInterceptor implements HandshakeInterceptor {
         ServletServerHttpResponse servletResponse = (ServletServerHttpResponse) response;
 
         try {
-            String token = servletRequest.getServletRequest().getParameter("token");
-            if (token == null || token.isBlank() || jwtService.isInvalidToken(token) || !jwtService.isAccessToken(token)) {
+            String ticketValue = servletRequest.getServletRequest().getParameter("ticket");
+            Optional<WebSocketTicket> consumedTicket = ticketStore.consume(ticketValue);
+            if (consumedTicket.isEmpty()) {
                 servletResponse.setStatusCode(HttpStatus.UNAUTHORIZED);
                 return false;
             }
-
-            Long memberId = jwtService.getMemberId(token);
 
             String requestURI = servletRequest.getServletRequest().getRequestURI();
             Map<String, String> matchedVariables = URI_TEMPLATE.match(requestURI);
@@ -46,17 +42,20 @@ public class JwtHandshakeInterceptor implements HandshakeInterceptor {
             String documentType = matchedVariables.get("documentType");
             Long documentId = Long.parseLong(matchedVariables.get("documentId"));
 
-            workSpaceQueryService.findWorkSpaceById(memberId, workSpaceId);
+            WebSocketTicket ticket = consumedTicket.get();
+            if (!ticket.workSpaceId().equals(workSpaceId)
+                    || !ticket.documentType().equalsIgnoreCase(documentType)
+                    || !ticket.documentId().equals(documentId)) {
+                servletResponse.setStatusCode(HttpStatus.FORBIDDEN);
+                return false;
+            }
 
             attributes.put(CollaborationSessionAttributes.WORKSPACE_ID, workSpaceId);
             attributes.put(CollaborationSessionAttributes.DOCUMENT_TYPE, documentType);
             attributes.put(CollaborationSessionAttributes.DOCUMENT_ID, documentId);
-            attributes.put(CollaborationSessionAttributes.MEMBER_ID, memberId);
+            attributes.put(CollaborationSessionAttributes.MEMBER_ID, ticket.memberId());
 
             return true;
-        } catch (NoSuchElementException e) {
-            servletResponse.setStatusCode(HttpStatus.FORBIDDEN);
-            return false;
         } catch (IllegalArgumentException e) {
             servletResponse.setStatusCode(HttpStatus.BAD_REQUEST);
             return false;
