@@ -56,6 +56,9 @@ public class OAuthService {
     @Value("${spring.security.oauth2.client.registration.kakao.redirect-uri}")
     private String kakaoRedirectUri;
 
+    @Value("${auth.refresh-cookie.renew-before:7d}")
+    private Duration refreshTokenRenewBefore;
+
     private final GoogleTokenClient googleTokenClient;
     private final GoogleUserClient googleUserClient;
     private final KakaoTokenClient kakaoTokenClient;
@@ -280,12 +283,20 @@ public class OAuthService {
                 .orElseThrow(() -> new UnauthorizedException("회원 정보를 찾을 수 없습니다"));
 
         String newAccessToken = jwtService.createAccessToken(member.getId(), member.getEmail());
-        String newRefreshToken = jwtService.createRefreshToken(member.getId(), member.getEmail());
+        String newRefreshToken = null;
 
-        savedRefreshToken.update(hashToken(newRefreshToken), jwtService.getExpiration(newRefreshToken));
-        refreshTokenRepository.save(savedRefreshToken);
+        if (shouldRenewRefreshToken(savedRefreshToken)) {
+            newRefreshToken = jwtService.createRefreshToken(member.getId(), member.getEmail());
+            savedRefreshToken.update(hashToken(newRefreshToken), jwtService.getExpiration(newRefreshToken));
+        }
 
         return new TokenResponse(newAccessToken, newRefreshToken);
+    }
+
+    private boolean shouldRenewRefreshToken(final RefreshToken refreshToken) {
+        LocalDateTime renewalThreshold = LocalDateTime.now(java.time.ZoneOffset.UTC)
+                .plus(refreshTokenRenewBefore);
+        return !refreshToken.getExpiresAt().isAfter(renewalThreshold);
     }
 
     @Transactional

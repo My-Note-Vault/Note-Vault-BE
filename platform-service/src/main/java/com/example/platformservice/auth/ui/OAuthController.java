@@ -86,9 +86,11 @@ public class OAuthController {
                 ? cookieRefreshToken
                 : request == null ? null : request.getRefreshToken();
         TokenResponse tokens = oAuthService.refreshTokens(refreshToken);
-        return ResponseEntity.ok()
-                .header(HttpHeaders.SET_COOKIE, refreshCookie(tokens.getRefreshToken()).toString())
-                .body(new AccessTokenResponse(tokens.getAccessToken()));
+        ResponseEntity.BodyBuilder response = ResponseEntity.ok();
+        if (tokens.getRefreshToken() != null) {
+            response.header(HttpHeaders.SET_COOKIE, refreshCookie(tokens.getRefreshToken()).toString());
+        }
+        return response.body(new AccessTokenResponse(tokens.getAccessToken()));
     }
 
     @PostMapping("/logout")
