@@ -35,22 +35,29 @@ public class WorkSpaceEditorWebSocketHandler extends BinaryWebSocketHandler {
     private final RedisPublisher redisPublisher;
     private final DocumentCommandService documentCommandService;
     private final DocumentQueryService documentQueryService;
+    private final WebSocketMetrics webSocketMetrics;
 
     @Override
     public void afterConnectionEstablished(WebSocketSession session) throws Exception {
-        Long persistenceDocumentId = documentId(session);
-        if ("space".equals(documentType(session))) {
-            persistenceDocumentId = documentCommandService.ensureWorkspaceHomeDocument(
-                    memberId(session),
-                    workSpaceId(session)
+        try {
+            Long persistenceDocumentId = documentId(session);
+            if ("space".equals(documentType(session))) {
+                persistenceDocumentId = documentCommandService.ensureWorkspaceHomeDocument(
+                        memberId(session),
+                        workSpaceId(session)
+                );
+            }
+            session.getAttributes().put(
+                    CollaborationSessionAttributes.PERSISTENCE_DOCUMENT_ID,
+                    persistenceDocumentId
             );
-        }
-        session.getAttributes().put(
-                CollaborationSessionAttributes.PERSISTENCE_DOCUMENT_ID,
-                persistenceDocumentId
-        );
 
-        sessionRegistry.add(sessionKey(session), session);
+            sessionRegistry.add(sessionKey(session), session);
+            webSocketMetrics.connectionOpened(documentType(session));
+        } catch (Exception exception) {
+            webSocketMetrics.connectionFailure("establishment", "initialization_error");
+            throw exception;
+        }
     }
 
     @Override
@@ -63,84 +70,106 @@ public class WorkSpaceEditorWebSocketHandler extends BinaryWebSocketHandler {
                 status
         );
         sessionRegistry.remove(sessionKey(session), session);
+        webSocketMetrics.connectionClosed(
+                documentType(session),
+                CloseStatus.NORMAL.equals(status) ? "normal" : "abnormal"
+        );
     }
 
     @Override
     protected void handleBinaryMessage(WebSocketSession session, BinaryMessage message) {
+        long startedAt = System.nanoTime();
         Long workSpaceId = workSpaceId(session);
         Long memberId = memberId(session);
         String documentType = documentType(session);
         Long documentId = persistenceDocumentId(session);
+        String metricMessageType = "unknown";
+        String metricOutcome = "success";
 
-        ByteBuffer readOnlyBuffer = message.getPayload().asReadOnlyBuffer();
-        byte[] payload = new byte[readOnlyBuffer.remaining()];
-        readOnlyBuffer.get(payload);
+        try {
+            ByteBuffer readOnlyBuffer = message.getPayload().asReadOnlyBuffer();
+            byte[] payload = new byte[readOnlyBuffer.remaining()];
+            readOnlyBuffer.get(payload);
 
-        int messageType = readMessageType(payload);
-        if (messageType == MESSAGE_DOCUMENT_UPDATE || messageType == MESSAGE_DOCUMENT_UPDATE_WITH_ACTIVITY) {
-            ClientCrdtUpdate update = decodeDocumentUpdate(
-                    payload,
-                    messageType == MESSAGE_DOCUMENT_UPDATE_WITH_ACTIVITY
-            );
-            DocumentCommandService.CommittedCrdtUpdate committed =
-                    documentCommandService.appendDocumentDelta(
-                            memberId,
-                            workSpaceId,
-                            documentId,
-                            persistenceDocumentType(documentType),
-                            update.clientUpdateId(),
-                            update.insertedCharacterCount(),
-                            update.crdtUpdate()
-                    );
-            sessionRegistry.sendTo(
-                    sessionKey(session),
-                    session.getId(),
-                    encodeUpdateAck(committed)
-            );
+            int messageType = readMessageType(payload);
+            metricMessageType = metricMessageType(messageType);
+            webSocketMetrics.messageReceived(documentType, metricMessageType, payload.length);
+
+            if (messageType == MESSAGE_DOCUMENT_UPDATE || messageType == MESSAGE_DOCUMENT_UPDATE_WITH_ACTIVITY) {
+                ClientCrdtUpdate update = decodeDocumentUpdate(
+                        payload,
+                        messageType == MESSAGE_DOCUMENT_UPDATE_WITH_ACTIVITY
+                );
+                DocumentCommandService.CommittedCrdtUpdate committed =
+                        documentCommandService.appendDocumentDelta(
+                                memberId,
+                                workSpaceId,
+                                documentId,
+                                persistenceDocumentType(documentType),
+                                update.clientUpdateId(),
+                                update.insertedCharacterCount(),
+                                update.crdtUpdate()
+                        );
+                sessionRegistry.sendTo(
+                        sessionKey(session),
+                        session.getId(),
+                        encodeUpdateAck(committed)
+                );
+                redisPublisher.publish(
+                        workSpaceId,
+                        documentType,
+                        documentId(session),
+                        session.getId(),
+                        encodeRevisionedUpdate(committed.revision(), committed.crdtUpdate())
+                );
+                return;
+            }
+
+            if (messageType == MESSAGE_CRDT_SYNC_REQUEST) {
+                long lastAppliedRevision = decodeCrdtSyncRequest(payload);
+                sendMissingCrdtUpdates(
+                        session,
+                        memberId,
+                        workSpaceId,
+                        documentId,
+                        persistenceDocumentType(documentType),
+                        lastAppliedRevision
+                );
+                return;
+            }
+
+            if (messageType == MESSAGE_SEARCH_PROJECTION) {
+                SearchProjection projection = decodeSearchProjection(payload);
+                documentCommandService.updateSearchProjection(
+                        memberId,
+                        workSpaceId,
+                        documentId,
+                        persistenceDocumentType(documentType),
+                        projection.revision(),
+                        projection.content(),
+                        projection.crdtState()
+                );
+                return;
+            }
+
             redisPublisher.publish(
                     workSpaceId,
                     documentType,
                     documentId(session),
                     session.getId(),
-                    encodeRevisionedUpdate(committed.revision(), committed.crdtUpdate())
+                    payload
             );
-            return;
-        }
-
-        if (messageType == MESSAGE_CRDT_SYNC_REQUEST) {
-            long lastAppliedRevision = decodeCrdtSyncRequest(payload);
-            sendMissingCrdtUpdates(
-                    session,
-                    memberId,
-                    workSpaceId,
-                    documentId,
-                    persistenceDocumentType(documentType),
-                    lastAppliedRevision
+        } catch (RuntimeException exception) {
+            metricOutcome = "failure";
+            throw exception;
+        } finally {
+            webSocketMetrics.recordMessageLatency(
+                    documentType,
+                    metricMessageType,
+                    metricOutcome,
+                    System.nanoTime() - startedAt
             );
-            return;
         }
-
-        if (messageType == MESSAGE_SEARCH_PROJECTION) {
-            SearchProjection projection = decodeSearchProjection(payload);
-            documentCommandService.updateSearchProjection(
-                    memberId,
-                    workSpaceId,
-                    documentId,
-                    persistenceDocumentType(documentType),
-                    projection.revision(),
-                    projection.content(),
-                    projection.crdtState()
-            );
-            return;
-        }
-
-        redisPublisher.publish(
-                workSpaceId,
-                documentType,
-                documentId(session),
-                session.getId(),
-                payload
-        );
     }
 
     @Override
@@ -152,6 +181,7 @@ public class WorkSpaceEditorWebSocketHandler extends BinaryWebSocketHandler {
                 documentId(session),
                 exception
         );
+        webSocketMetrics.connectionFailure("transport", "transport_error");
         sessionRegistry.remove(sessionKey(session), session);
 
         if (session.isOpen()) {
@@ -189,6 +219,16 @@ public class WorkSpaceEditorWebSocketHandler extends BinaryWebSocketHandler {
         return "space".equals(documentType)
                 ? DocumentType.WORKSPACE_HOME
                 : DocumentType.valueOf(documentType.toUpperCase());
+    }
+
+    private String metricMessageType(final int messageType) {
+        return switch (messageType) {
+            case MESSAGE_DOCUMENT_UPDATE -> "document_update";
+            case MESSAGE_DOCUMENT_UPDATE_WITH_ACTIVITY -> "document_update_with_activity";
+            case MESSAGE_SEARCH_PROJECTION -> "search_projection";
+            case MESSAGE_CRDT_SYNC_REQUEST -> "sync_request";
+            default -> "other";
+        };
     }
 
     private void sendMissingCrdtUpdates(

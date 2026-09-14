@@ -21,6 +21,7 @@ public class JwtHandshakeInterceptor implements HandshakeInterceptor {
     private static final UriTemplate URI_TEMPLATE = new UriTemplate("/ws/workspaces/{workSpaceId}/{documentType}/{documentId}");
 
     private final WebSocketTicketStore ticketStore;
+    private final WebSocketMetrics webSocketMetrics;
 
     @Override
     public boolean beforeHandshake(ServerHttpRequest request, ServerHttpResponse response, WebSocketHandler wsHandler, Map<String, Object> attributes) throws Exception {
@@ -31,6 +32,7 @@ public class JwtHandshakeInterceptor implements HandshakeInterceptor {
             String ticketValue = servletRequest.getServletRequest().getParameter("ticket");
             Optional<WebSocketTicket> consumedTicket = ticketStore.consume(ticketValue);
             if (consumedTicket.isEmpty()) {
+                webSocketMetrics.connectionFailure("handshake", "invalid_ticket");
                 servletResponse.setStatusCode(HttpStatus.UNAUTHORIZED);
                 return false;
             }
@@ -46,6 +48,7 @@ public class JwtHandshakeInterceptor implements HandshakeInterceptor {
             if (!ticket.workSpaceId().equals(workSpaceId)
                     || !ticket.documentType().equalsIgnoreCase(documentType)
                     || !ticket.documentId().equals(documentId)) {
+                webSocketMetrics.connectionFailure("handshake", "ticket_mismatch");
                 servletResponse.setStatusCode(HttpStatus.FORBIDDEN);
                 return false;
             }
@@ -57,6 +60,7 @@ public class JwtHandshakeInterceptor implements HandshakeInterceptor {
 
             return true;
         } catch (IllegalArgumentException e) {
+            webSocketMetrics.connectionFailure("handshake", "bad_request");
             servletResponse.setStatusCode(HttpStatus.BAD_REQUEST);
             return false;
         }

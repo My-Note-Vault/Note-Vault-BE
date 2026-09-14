@@ -1,5 +1,7 @@
 package com.example.workspace.common.websocket;
 
+import io.micrometer.core.instrument.Gauge;
+import io.micrometer.core.instrument.MeterRegistry;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 import org.springframework.web.socket.BinaryMessage;
@@ -20,6 +22,23 @@ public class SessionRegistry {
     private static final int BUFFER_SIZE_LIMIT_BYTES = 1_048_576;
 
     private final Map<SessionKey, Set<WebSocketSession>> rooms = new ConcurrentHashMap<>();
+    private final WebSocketMetrics webSocketMetrics;
+
+    public SessionRegistry(
+            final MeterRegistry meterRegistry,
+            final WebSocketMetrics webSocketMetrics
+    ) {
+        this.webSocketMetrics = webSocketMetrics;
+        Gauge.builder(
+                        "websocket.connections.active",
+                        rooms,
+                        currentRooms -> currentRooms.values().stream()
+                                .mapToInt(Set::size)
+                                .sum()
+                )
+                .description("Current active WebSocket connections")
+                .register(meterRegistry);
+    }
 
     public void add(SessionKey key, WebSocketSession session) {
         rooms.computeIfAbsent(key, k -> ConcurrentHashMap.newKeySet())
@@ -52,7 +71,9 @@ public class SessionRegistry {
 
             try {
                 session.sendMessage(new BinaryMessage(payload));
+                webSocketMetrics.messageSent(documentType, "broadcast", payload.length);
             } catch (IOException | IllegalStateException e) {
+                webSocketMetrics.sendFailure(documentType, "broadcast");
                 log.warn("Failed to send Yjs message to session {}", session.getId(), e);
                 remove(key, session);
                 closeQuietly(session);
@@ -75,7 +96,9 @@ public class SessionRegistry {
 
         try {
             session.sendMessage(new BinaryMessage(payload));
+            webSocketMetrics.messageSent(key.documentType(), "direct", payload.length);
         } catch (IOException | IllegalStateException e) {
+            webSocketMetrics.sendFailure(key.documentType(), "direct");
             log.warn("Failed to send Yjs message to session {}", session.getId(), e);
             remove(key, session);
             closeQuietly(session);
