@@ -29,6 +29,15 @@ public class SemanticChatService {
     private int maxCandidates;
 
     public ChatResult chat(Long memberId, String question) {
+        ChatPreparation preparation = prepare(memberId, question);
+        if (!preparation.hasContext()) {
+            return new ChatResult("NO_CONTEXT", "관련 문서 내용을 찾지 못했습니다.", List.of());
+        }
+        return new ChatResult("ANSWERED",
+                openAi.answer(preparation.question(), preparation.context()), preparation.sources());
+    }
+
+    public ChatPreparation prepare(Long memberId, String question) {
         if (question == null || question.isBlank() || question.length() > 4000) {
             throw new IllegalArgumentException("질문은 1자 이상 4000자 이하여야 합니다.");
         }
@@ -42,7 +51,7 @@ public class SemanticChatService {
                 .limit(topK)
                 .toList();
         if (found.isEmpty()) {
-            return new ChatResult("NO_CONTEXT", "관련 문서 내용을 찾지 못했습니다.", List.of());
+            return new ChatPreparation(question.trim(), "", List.of());
         }
 
         StringBuilder context = new StringBuilder();
@@ -58,7 +67,11 @@ public class SemanticChatService {
                     chunk.getResourceId(), chunk.getResourceType(), chunk.getSourceTitle(),
                     result.similarity(), excerpt(chunk.getContent())));
         }
-        return new ChatResult("ANSWERED", openAi.answer(question.trim(), context.toString()), sources);
+        return new ChatPreparation(question.trim(), context.toString(), sources);
+    }
+
+    public void streamAnswer(ChatPreparation preparation, java.util.function.Consumer<String> onDelta) {
+        openAi.streamAnswer(preparation.question(), preparation.context(), onDelta);
     }
 
     private double[] parse(String json) {
@@ -103,5 +116,11 @@ public class SemanticChatService {
     }
 
     public record ChatResult(String status, String answer, List<Source> sources) {
+    }
+
+    public record ChatPreparation(String question, String context, List<Source> sources) {
+        public boolean hasContext() {
+            return !sources.isEmpty();
+        }
     }
 }

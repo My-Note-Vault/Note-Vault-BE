@@ -8,11 +8,15 @@ import org.springframework.http.MediaType;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
 
+import java.io.BufferedReader;
+import java.io.InputStreamReader;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.function.Consumer;
 
 @Component
 public class OpenAiSearchClient {
@@ -74,6 +78,74 @@ public class OpenAiSearchClient {
             throw new IllegalStateException("챗봇 응답이 비어 있습니다.");
         }
         return text.toString();
+    }
+
+    public void streamAnswer(String question, String context, Consumer<String> onDelta) {
+        if (apiKey == null || apiKey.isBlank()) {
+            throw new IllegalStateException("OPENAI_API_KEY가 설정되지 않았습니다.");
+        }
+
+        Map<String, Object> body = new LinkedHashMap<>();
+        body.put("model", chatModel);
+        body.put("instructions", instructions);
+        body.put("input", "문맥:\n" + context + "\n질문:\n" + question);
+        body.put("max_output_tokens", maxOutputTokens);
+        body.put("store", false);
+        body.put("stream", true);
+
+        client.post()
+                .uri("/responses")
+                .header(HttpHeaders.AUTHORIZATION, "Bearer " + apiKey)
+                .contentType(MediaType.APPLICATION_JSON)
+                .accept(MediaType.TEXT_EVENT_STREAM)
+                .body(body)
+                .exchange((request, response) -> {
+                    if (response.getStatusCode().isError()) {
+                        String error = new String(response.getBody().readAllBytes(), StandardCharsets.UTF_8);
+                        throw new IllegalStateException("OpenAI 응답 실패: " + error);
+                    }
+
+                    try (BufferedReader reader = new BufferedReader(new InputStreamReader(
+                            response.getBody(), StandardCharsets.UTF_8))) {
+                        StringBuilder eventData = new StringBuilder();
+                        String line;
+                        while ((line = reader.readLine()) != null) {
+                            if (line.isEmpty()) {
+                                handleStreamEvent(eventData, onDelta);
+                                eventData.setLength(0);
+                            } else if (line.startsWith("data:")) {
+                                if (!eventData.isEmpty()) {
+                                    eventData.append('\n');
+                                }
+                                eventData.append(line.substring(5).stripLeading());
+                            }
+                        }
+                        handleStreamEvent(eventData, onDelta);
+                    }
+                    return null;
+                });
+    }
+
+    private void handleStreamEvent(StringBuilder eventData, Consumer<String> onDelta) {
+        if (eventData.isEmpty() || "[DONE]".contentEquals(eventData)) {
+            return;
+        }
+        try {
+            JsonNode event = mapper.readTree(eventData.toString());
+            String type = event.path("type").asText();
+            if ("response.output_text.delta".equals(type)) {
+                String delta = event.path("delta").asText();
+                if (!delta.isEmpty()) {
+                    onDelta.accept(delta);
+                }
+            } else if ("error".equals(type) || "response.failed".equals(type)) {
+                throw new IllegalStateException("OpenAI 스트림 실패: " + event);
+            }
+        } catch (IllegalStateException exception) {
+            throw exception;
+        } catch (Exception exception) {
+            throw new IllegalStateException("OpenAI 스트림을 해석하지 못했습니다.", exception);
+        }
     }
 
     private JsonNode post(String uri, Object body) {
