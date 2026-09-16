@@ -50,5 +50,17 @@ public interface DocumentRepository extends JpaRepository<Document, Long> {
 
     List<Document> findAllByWorkSpaceIdAndType(Long workSpaceId, DocumentType type);
 
+    @Query("""
+            select d
+            from Document d
+            where d.workSpaceId = :workSpaceId
+              and d.type in :types
+            order by d.createdAt, d.id
+            """)
+    List<Document> findAllByWorkSpaceIdAndTypeIn(
+            @Param("workSpaceId") Long workSpaceId,
+            @Param("types") List<DocumentType> types
+    );
+
     List<Document> findAllByParentId(Long parentId);
 }

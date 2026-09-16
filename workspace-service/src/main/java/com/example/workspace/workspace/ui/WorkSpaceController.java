@@ -6,6 +6,7 @@ import com.example.workspace.workspace.command.application.request.*;
 import com.example.workspace.workspace.command.domain.WorkSpace;
 import com.example.workspace.workspace.query.WorkSpaceQueryService;
 import com.example.workspace.workspace.query.response.InvitedWorkSpaceSummaryResponse;
+import com.example.workspace.workspace.query.response.WorkspaceDocumentTreeNodeResponse;
 import com.example.workspace.workspace.query.response.WorkSpaceSummaryResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -21,6 +22,14 @@ public class WorkSpaceController {
 
     private final WorkSpaceCommandService workSpaceCommandService;
     private final WorkSpaceQueryService workSpaceQueryService;
+
+    @GetMapping("/{workspaceId}/documents/tree")
+    public ResponseEntity<List<WorkspaceDocumentTreeNodeResponse>> findDocumentTree(
+            @PathVariable final Long workspaceId,
+            @AuthMemberId final Long memberId
+    ) {
+        return ResponseEntity.ok(workSpaceQueryService.findDocumentTree(memberId, workspaceId));
+    }
 
     @GetMapping("information/{id}")
     public ResponseEntity<WorkSpace> findSpecificWorkSpace(

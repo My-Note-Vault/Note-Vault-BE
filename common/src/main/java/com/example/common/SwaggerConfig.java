@@ -50,14 +50,6 @@ public class SwaggerConfig {
     }
 
     @Bean
-    public GroupedOpenApi unfoldedNotesApi() {
-        return GroupedOpenApi.builder()
-                .group("unflolded-notes")
-                .pathsToMatch("/api/v1/unfolded-notes/**")
-                .build();
-    }
-
-    @Bean
     public GroupedOpenApi documentApi() {
         return GroupedOpenApi.builder()
                 .group("documents")
