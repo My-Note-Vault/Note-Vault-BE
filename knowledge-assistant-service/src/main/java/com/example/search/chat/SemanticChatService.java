@@ -3,6 +3,7 @@ package com.example.search.chat;
 import com.example.search.content.ContentChunk;
 import com.example.search.content.ContentChunkRepository;
 import com.example.search.infrastructure.OpenAiSearchClient;
+import com.notevault.workspace.api.search.KeywordSearchReader;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
@@ -12,7 +13,9 @@ import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 @RequiredArgsConstructor
 @Service
@@ -20,6 +23,8 @@ public class SemanticChatService {
     private final ContentChunkRepository chunks;
     private final ObjectMapper mapper;
     private final OpenAiSearchClient openAi;
+    private final KeywordSearchReader keywordSearch;
+    private final KeywordExtractor keywordExtractor;
 
     @Value("${openai.chat.top-k:6}")
     private int topK;
@@ -27,6 +32,12 @@ public class SemanticChatService {
     private double minSimilarity;
     @Value("${openai.chat.max-candidates:5000}")
     private int maxCandidates;
+    @Value("${openai.chat.semantic-weight:0.7}")
+    private double semanticWeight;
+    @Value("${openai.chat.keyword-weight:0.3}")
+    private double keywordWeight;
+    @Value("${openai.chat.keyword-top-k:20}")
+    private int keywordTopK;
 
     public ChatResult chat(Long memberId, String question) {
         ChatPreparation preparation = prepare(memberId, question);
@@ -42,12 +53,23 @@ public class SemanticChatService {
             throw new IllegalArgumentException("질문은 1자 이상 4000자 이하여야 합니다.");
         }
 
-        double[] query = parse(openAi.embed(List.of(question.trim())).getFirst());
-        List<ScoredChunk> found = chunks.findAccessibleCandidates(
+        String normalizedQuestion = question.trim();
+        double[] query = parse(openAi.embed(List.of(normalizedQuestion)).getFirst());
+        List<ContentChunk> candidates = chunks.findAccessibleCandidates(
                         memberId, openAi.embeddingModel(), PageRequest.of(0, maxCandidates)).stream()
-                .map(chunk -> new ScoredChunk(chunk, cosine(query, parse(chunk.getEmbedding()))))
-                .filter(result -> result.similarity() >= minSimilarity)
-                .sorted(Comparator.comparingDouble(ScoredChunk::similarity).reversed())
+                .toList();
+        Map<SourceKey, Double> keywordScores = keywordScores(memberId, normalizedQuestion);
+        List<ScoredChunk> found = candidates.stream()
+                .map(chunk -> {
+                    double semantic = cosine(query, parse(chunk.getEmbedding()));
+                    SourceKey key = new SourceKey(chunk.getSourceType().name(), chunk.getSourceId());
+                    double keyword = keywordScores.getOrDefault(key, 0.0);
+                    return new ScoredChunk(chunk, semantic, keyword,
+                            semanticWeight * normalizeSemantic(semantic)
+                                    + keywordWeight * keyword);
+                })
+                .filter(result -> result.semantic() >= minSimilarity || result.keyword() > 0)
+                .sorted(Comparator.comparingDouble(ScoredChunk::score).reversed())
                 .limit(topK)
                 .toList();
         if (found.isEmpty()) {
@@ -65,9 +87,9 @@ public class SemanticChatService {
                     .append(chunk.getContent()).append("\n\n");
             sources.add(new Source(number, chunk.getId(), chunk.getSourceType().name(),
                     chunk.getResourceId(), chunk.getResourceType(), chunk.getSourceTitle(),
-                    result.similarity(), excerpt(chunk.getContent())));
+                    result.semantic(), excerpt(chunk.getContent())));
         }
-        return new ChatPreparation(question.trim(), context.toString(), sources);
+        return new ChatPreparation(normalizedQuestion, context.toString(), sources);
     }
 
     public void streamAnswer(ChatPreparation preparation, java.util.function.Consumer<String> onDelta) {
@@ -108,7 +130,23 @@ public class SemanticChatService {
         return content.length() <= 300 ? content : content.substring(0, 300) + "…";
     }
 
-    private record ScoredChunk(ContentChunk chunk, double similarity) {
+    private Map<SourceKey, Double> keywordScores(Long memberId, String question) {
+        Map<SourceKey, Double> scores = new HashMap<>();
+        keywordSearch.search(memberId, keywordExtractor.extract(question), keywordTopK)
+                .forEach(hit -> scores.merge(
+                        new SourceKey(hit.sourceType().name(), hit.sourceId()), hit.score(), Math::max));
+        return scores;
+    }
+
+    private double normalizeSemantic(double similarity) {
+        if (similarity <= minSimilarity) return 0.0;
+        return Math.min(1.0, (similarity - minSimilarity) / (1.0 - minSimilarity));
+    }
+
+    private record SourceKey(String sourceType, Long sourceId) {
+    }
+
+    private record ScoredChunk(ContentChunk chunk, double semantic, double keyword, double score) {
     }
 
     public record Source(int number, Long chunkId, String sourceType, Long resourceId,

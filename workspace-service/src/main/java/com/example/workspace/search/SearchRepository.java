@@ -27,7 +27,9 @@ public class SearchRepository {
                 w.id,
                 w.name AS title,
                 COALESCE(home.search_content, w.content) AS content,
-                w.created_at
+                w.created_at,
+                home.id AS source_id,
+                home.search_revision AS source_revision
             FROM workspace w
             INNER JOIN workspace_member wm ON wm.workspace_id = w.id
             LEFT JOIN document home
@@ -46,7 +48,9 @@ public class SearchRepository {
                 d.id,
                 d.title,
                 d.search_content AS content,
-                d.created_at
+                d.created_at,
+                d.id AS source_id,
+                d.search_revision AS source_revision
             FROM document d
             INNER JOIN workspace_member wm ON wm.workspace_id = d.workspace_id
             WHERE wm.member_id = :memberId
@@ -62,13 +66,16 @@ public class SearchRepository {
         return jdbcTemplate.query(sql, params(memberId, targetWord), (rs, rowNum) -> new SearchDocumentRow(
                 SearchDocumentType.valueOf(rs.getString("type")),
                 rs.getLong("id"),
+                rs.getObject("source_id", Long.class),
                 rs.getString("title"),
                 rs.getString("content"),
-                getLocalDateTime(rs.getTimestamp("created_at"))
+                getLocalDateTime(rs.getTimestamp("created_at")),
+                null,
+                rs.getObject("source_revision", Long.class)
         ));
     }
 
-    public List<SearchResponse.SearchResult> searchDailyNotes(final Long memberId, final String targetWord) {
+    public List<SearchDocumentRow> searchDailyNotes(final Long memberId, final String targetWord) {
         String sql = """
         SELECT
             dn.id,
@@ -77,7 +84,8 @@ public class SearchRepository {
                 WHEN COALESCE(dn.content, '') ILIKE :keyword ESCAPE :escape THEN dn.content
                 ELSE matched_plan.content
             END AS content,
-            dn.created_at
+            dn.created_at,
+            dn.content_revision
         FROM daily_note dn
         LEFT JOIN LATERAL (
             SELECT p.content
@@ -96,13 +104,15 @@ public class SearchRepository {
         ORDER BY dn.created_at ASC
         """;
 
-        return jdbcTemplate.query(sql, params(memberId, targetWord), (rs, rowNum) -> new SearchResponse.SearchResult(
-                rs.getLong("id"),
+        return jdbcTemplate.query(sql, params(memberId, targetWord), (rs, rowNum) -> new SearchDocumentRow(
                 SearchDocumentType.DAILY_NOTE,
+                rs.getLong("id"),
+                rs.getLong("id"),
                 getLocalDate(rs.getObject("logical_date")).toString(),
                 rs.getString("content"),
                 getLocalDateTime(rs.getTimestamp("created_at")),
-                getLocalDate(rs.getObject("logical_date"))
+                getLocalDate(rs.getObject("logical_date")),
+                rs.getObject("content_revision", Long.class)
         ));
     }
 

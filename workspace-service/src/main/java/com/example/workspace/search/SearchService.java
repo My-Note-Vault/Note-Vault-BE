@@ -1,15 +1,23 @@
 package com.example.workspace.search;
 
+import com.notevault.workspace.api.search.KeywordSearchHit;
+import com.notevault.workspace.api.search.KeywordSearchReader;
+import com.notevault.workspace.api.search.KeywordSourceType;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
+import java.util.Map;
+import java.util.Objects;
 
 @RequiredArgsConstructor
 @Service
-public class SearchService {
+public class SearchService implements KeywordSearchReader {
 
     private static final int SNIPPET_CONTEXT_LENGTH = 5;
 
@@ -44,6 +52,79 @@ public class SearchService {
                 .toList());
         results.sort((left, right) -> right.createdAt().compareTo(left.createdAt()));
         return new SearchResponse(results);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<KeywordSearchHit> search(
+            final Long memberId,
+            final List<String> keywords,
+            final int limitPerKeyword
+    ) {
+        Objects.requireNonNull(memberId, "memberId");
+        Objects.requireNonNull(keywords, "keywords");
+        if (limitPerKeyword < 0) {
+            throw new IllegalArgumentException("limitPerKeyword must be non-negative");
+        }
+        if (keywords.isEmpty() || limitPerKeyword == 0) {
+            return List.of();
+        }
+
+        Map<SourceKey, KeywordSearchHit> hits = new LinkedHashMap<>();
+        keywords.stream()
+                .filter(Objects::nonNull)
+                .map(String::strip)
+                .filter(keyword -> !keyword.isEmpty())
+                .distinct()
+                .forEach(keyword -> searchKeyword(memberId, keyword).stream()
+                        .sorted(Comparator.comparingDouble(KeywordSearchHit::score).reversed())
+                        .limit(limitPerKeyword)
+                        .forEach(hit -> hits.merge(
+                                new SourceKey(hit.sourceType(), hit.sourceId()),
+                                hit,
+                                (left, right) -> left.score() >= right.score() ? left : right
+                        )));
+        return hits.values().stream()
+                .sorted(Comparator.comparingDouble(KeywordSearchHit::score).reversed())
+                .toList();
+    }
+
+    private List<KeywordSearchHit> searchKeyword(final Long memberId, final String keyword) {
+        List<SearchDocumentRow> rows = new ArrayList<>(searchRepository.searchWorkspaceNotes(memberId, keyword));
+        rows.addAll(searchRepository.searchDailyNotes(memberId, keyword));
+        // Preserve the existing newest-first tie break before ranking by keyword score.
+        rows.sort(Comparator.comparing(SearchDocumentRow::createdAt).reversed());
+
+        List<KeywordSearchHit> hits = new ArrayList<>();
+        for (SearchDocumentRow row : rows) {
+            // A legacy workspace without a home document has no DOCUMENT source to join to.
+            if (row.sourceId() == null) {
+                continue;
+            }
+            String snippet = createSnippet(row.content(), keyword);
+            boolean titleMatched = row.title() != null
+                    && row.title().toLowerCase(Locale.ROOT).contains(keyword.toLowerCase(Locale.ROOT));
+            double score = titleMatched ? 1.0 : (snippet != null ? 0.7 : 0.0);
+            if (score <= 0) {
+                continue;
+            }
+            KeywordSourceType sourceType = row.type() == SearchDocumentType.DAILY_NOTE
+                    ? KeywordSourceType.DAILY_NOTE : KeywordSourceType.DOCUMENT;
+            String resourceType = switch (row.type()) {
+                case WORKSPACE -> "space";
+                case DAILY_NOTE -> "daily";
+                case TASK -> "task";
+                case NOTE -> "note";
+            };
+            hits.add(new KeywordSearchHit(
+                    sourceType, row.sourceId(), resourceType, row.id(),
+                    row.title(), snippet, row.sourceRevision(), score
+            ));
+        }
+        return hits;
+    }
+
+    private record SourceKey(KeywordSourceType sourceType, Long sourceId) {
     }
 
     private String createSnippet(final String content, final String targetWord) {

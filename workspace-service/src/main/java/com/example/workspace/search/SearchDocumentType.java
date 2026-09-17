@@ -1,6 +1,6 @@
 package com.example.workspace.search;
 
-enum SearchDocumentType {
+public enum SearchDocumentType {
     WORKSPACE,
     TASK,
     NOTE,
