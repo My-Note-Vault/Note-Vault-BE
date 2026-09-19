@@ -36,6 +36,11 @@ out/
 ### VS Code ###
 .vscode/
 
-
 ## Custom
 *.yml
+.DS_Store
+.gradle-user-home/
+logs/
+load-test-users*.csv
+load-test-results/
+*.jtl

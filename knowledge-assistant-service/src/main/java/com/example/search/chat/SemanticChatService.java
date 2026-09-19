@@ -1,14 +1,13 @@
 package com.example.search.chat;
 
-import com.example.search.content.ContentChunk;
-import com.example.search.content.ContentChunkRepository;
+import com.example.search.retrieval.IndexedChunk;
+import com.example.search.retrieval.IndexedChunkReader;
 import com.example.search.infrastructure.OpenAiSearchClient;
 import com.notevault.workspace.api.search.KeywordSearchReader;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
@@ -20,7 +19,7 @@ import java.util.Map;
 @RequiredArgsConstructor
 @Service
 public class SemanticChatService {
-    private final ContentChunkRepository chunks;
+    private final IndexedChunkReader chunks;
     private final ObjectMapper mapper;
     private final OpenAiSearchClient openAi;
     private final KeywordSearchReader keywordSearch;
@@ -54,15 +53,14 @@ public class SemanticChatService {
         }
 
         String normalizedQuestion = question.trim();
-        double[] query = parse(openAi.embed(List.of(normalizedQuestion)).getFirst());
-        List<ContentChunk> candidates = chunks.findAccessibleCandidates(
-                        memberId, openAi.embeddingModel(), PageRequest.of(0, maxCandidates)).stream()
-                .toList();
+        double[] query = parse(openAi.embedQuestion(normalizedQuestion));
+        List<IndexedChunk> candidates = chunks.findAccessibleCandidates(
+                memberId, openAi.embeddingModel(), maxCandidates);
         Map<SourceKey, Double> keywordScores = keywordScores(memberId, normalizedQuestion);
         List<ScoredChunk> found = candidates.stream()
                 .map(chunk -> {
-                    double semantic = cosine(query, parse(chunk.getEmbedding()));
-                    SourceKey key = new SourceKey(chunk.getSourceType().name(), chunk.getSourceId());
+                    double semantic = cosine(query, parse(chunk.embedding()));
+                    SourceKey key = new SourceKey(chunk.sourceType(), chunk.sourceId());
                     double keyword = keywordScores.getOrDefault(key, 0.0);
                     return new ScoredChunk(chunk, semantic, keyword,
                             semanticWeight * normalizeSemantic(semantic)
@@ -80,14 +78,14 @@ public class SemanticChatService {
         List<Source> sources = new ArrayList<>();
         for (int index = 0; index < found.size(); index++) {
             ScoredChunk result = found.get(index);
-            ContentChunk chunk = result.chunk();
+            IndexedChunk chunk = result.chunk();
             int number = index + 1;
             context.append('[').append(number).append("]\n문서: ")
-                    .append(chunk.getSourceTitle()).append("\n내용:\n")
-                    .append(chunk.getContent()).append("\n\n");
-            sources.add(new Source(number, chunk.getId(), chunk.getSourceType().name(),
-                    chunk.getResourceId(), chunk.getResourceType(), chunk.getSourceTitle(),
-                    result.semantic(), excerpt(chunk.getContent())));
+                    .append(chunk.sourceTitle()).append("\n내용:\n")
+                    .append(chunk.content()).append("\n\n");
+            sources.add(new Source(number, chunk.id(), chunk.sourceType(),
+                    chunk.resourceId(), chunk.resourceType(), chunk.sourceTitle(),
+                    result.semantic(), excerpt(chunk.content())));
         }
         return new ChatPreparation(normalizedQuestion, context.toString(), sources);
     }
@@ -146,7 +144,7 @@ public class SemanticChatService {
     private record SourceKey(String sourceType, Long sourceId) {
     }
 
-    private record ScoredChunk(ContentChunk chunk, double semantic, double keyword, double score) {
+    private record ScoredChunk(IndexedChunk chunk, double semantic, double keyword, double score) {
     }
 
     public record Source(int number, Long chunkId, String sourceType, Long resourceId,

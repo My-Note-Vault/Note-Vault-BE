@@ -14,4 +14,8 @@ public record ContentSourceSnapshot(
         Long revision,
         String contentHash,
         LocalDateTime sourceUpdatedAt
-) { }
+) {
+    public String version() {
+        return revision == null ? contentHash : String.valueOf(revision);
+    }
+}

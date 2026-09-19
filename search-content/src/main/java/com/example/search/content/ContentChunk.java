@@ -1,13 +1,12 @@
 package com.example.search.content;
 
-import com.example.common.Auditable;
 import jakarta.persistence.*;
 import lombok.*;
 
 @Getter @NoArgsConstructor(access = AccessLevel.PROTECTED)
-@Table(name="content_chunk",indexes={@Index(columnList="source_type, source_id, chunk_index"),@Index(columnList="workspace_id"),@Index(columnList="owner_id"),@Index(columnList="embedding_status, embedding_model")})
+@Table(name="content_chunk",uniqueConstraints=@UniqueConstraint(name="uk_content_chunk_source_version_index",columnNames={"source_type","source_id","source_version","chunk_index"}),indexes={@Index(columnList="source_type, source_id, chunk_index"),@Index(columnList="workspace_id"),@Index(columnList="owner_id"),@Index(columnList="embedding_status, embedding_model")})
 @Entity
-public class ContentChunk extends Auditable {
+public class ContentChunk extends SearchAuditable {
     @Id @GeneratedValue(strategy=GenerationType.IDENTITY) private Long id;
     @Enumerated(EnumType.STRING) @Column(name="source_type",nullable=false,length=30) private ContentSourceType sourceType;
     @Column(name="source_id",nullable=false) private Long sourceId;
@@ -37,5 +36,5 @@ public class ContentChunk extends Auditable {
     public void startEmbedding(){embeddingStatus=EmbeddingStatus.PROCESSING;embeddingAttempts++;embeddingError=null;}
     public void saveEmbedding(String value,String model){embedding=value;embeddingModel=model;embeddingStatus=EmbeddingStatus.READY;embeddingError=null;}
     public void failEmbedding(String message){embeddingStatus=EmbeddingStatus.FAILED;embeddingError=message;}
-    private static String version(ContentSourceSnapshot source){return source.revision()==null?source.contentHash():String.valueOf(source.revision());}
+    private static String version(ContentSourceSnapshot source){return source.version();}
 }

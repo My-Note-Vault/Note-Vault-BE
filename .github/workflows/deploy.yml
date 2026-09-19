@@ -23,7 +23,7 @@ jobs:
         run: |
           set -euo pipefail
           chmod +x ./gradlew
-          ./gradlew clean bootJar
+          ./gradlew clean :bootJar
 
       - name: Docker Login
         uses: docker/login-action@v3

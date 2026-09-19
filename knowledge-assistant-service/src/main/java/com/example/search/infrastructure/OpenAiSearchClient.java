@@ -11,10 +11,7 @@ import org.springframework.web.client.RestClient;
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
-import java.util.ArrayList;
-import java.util.Comparator;
 import java.util.LinkedHashMap;
-import java.util.List;
 import java.util.Map;
 import java.util.function.Consumer;
 
@@ -43,20 +40,16 @@ public class OpenAiSearchClient {
         return embeddingModel;
     }
 
-    public List<String> embed(List<String> input) {
-        JsonNode response = post("/embeddings", Map.of("model", embeddingModel, "input", input));
-        List<JsonNode> rows = new ArrayList<>();
-        response.path("data").forEach(rows::add);
-        rows.sort(Comparator.comparingInt(row -> row.path("index").asInt()));
-        try {
-            List<String> result = new ArrayList<>();
-            for (JsonNode row : rows) {
-                result.add(mapper.writeValueAsString(row.path("embedding")));
-            }
-            return result;
-        } catch (Exception exception) {
-            throw new IllegalStateException(exception);
+    /** Embeds a single search question; document indexing belongs to the worker. */
+    public String embedQuestion(String question) {
+        JsonNode response = post("/embeddings", Map.of("model", embeddingModel, "input", question));
+        JsonNode data = response == null ? null : response.get("data");
+        if (data == null || !data.isArray() || data.size() != 1
+                || !data.get(0).path("embedding").isArray()
+                || data.get(0).path("embedding").isEmpty()) {
+            throw new IllegalStateException("질문 임베딩 응답이 올바르지 않습니다.");
         }
+        return data.get(0).get("embedding").toString();
     }
 
     public String answer(String question, String context) {
