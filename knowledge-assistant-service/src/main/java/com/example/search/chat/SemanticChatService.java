@@ -1,42 +1,24 @@
 package com.example.search.chat;
 
 import com.example.search.retrieval.IndexedChunk;
-import com.example.search.retrieval.IndexedChunkReader;
+import com.example.search.retrieval.HybridSearch;
 import com.example.search.infrastructure.OpenAiSearchClient;
-import com.notevault.workspace.api.search.KeywordSearchReader;
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
-import java.util.Comparator;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 
 @RequiredArgsConstructor
 @Service
 public class SemanticChatService {
-    private final IndexedChunkReader chunks;
-    private final ObjectMapper mapper;
+    private final HybridSearch search;
     private final OpenAiSearchClient openAi;
-    private final KeywordSearchReader keywordSearch;
     private final KeywordExtractor keywordExtractor;
 
     @Value("${openai.chat.top-k:6}")
     private int topK;
-    @Value("${openai.chat.min-similarity:0.3}")
-    private double minSimilarity;
-    @Value("${openai.chat.max-candidates:5000}")
-    private int maxCandidates;
-    @Value("${openai.chat.semantic-weight:0.7}")
-    private double semanticWeight;
-    @Value("${openai.chat.keyword-weight:0.3}")
-    private double keywordWeight;
-    @Value("${openai.chat.keyword-top-k:20}")
-    private int keywordTopK;
 
     public ChatResult chat(Long memberId, String question) {
         ChatPreparation preparation = prepare(memberId, question);
@@ -53,23 +35,9 @@ public class SemanticChatService {
         }
 
         String normalizedQuestion = question.trim();
-        double[] query = parse(openAi.embedQuestion(normalizedQuestion));
-        List<IndexedChunk> candidates = chunks.findAccessibleCandidates(
-                memberId, openAi.embeddingModel(), maxCandidates);
-        Map<SourceKey, Double> keywordScores = keywordScores(memberId, normalizedQuestion);
-        List<ScoredChunk> found = candidates.stream()
-                .map(chunk -> {
-                    double semantic = cosine(query, parse(chunk.embedding()));
-                    SourceKey key = new SourceKey(chunk.sourceType(), chunk.sourceId());
-                    double keyword = keywordScores.getOrDefault(key, 0.0);
-                    return new ScoredChunk(chunk, semantic, keyword,
-                            semanticWeight * normalizeSemantic(semantic)
-                                    + keywordWeight * keyword);
-                })
-                .filter(result -> result.semantic() >= minSimilarity || result.keyword() > 0)
-                .sorted(Comparator.comparingDouble(ScoredChunk::score).reversed())
-                .limit(topK)
-                .toList();
+        List<HybridSearch.Result> found = search.search(memberId, normalizedQuestion,
+                keywordExtractor.extract(normalizedQuestion), openAi.embeddingModel(),
+                openAi.embedQuestion(normalizedQuestion), topK);
         if (found.isEmpty()) {
             return new ChatPreparation(question.trim(), "", List.of());
         }
@@ -77,7 +45,7 @@ public class SemanticChatService {
         StringBuilder context = new StringBuilder();
         List<Source> sources = new ArrayList<>();
         for (int index = 0; index < found.size(); index++) {
-            ScoredChunk result = found.get(index);
+            HybridSearch.Result result = found.get(index);
             IndexedChunk chunk = result.chunk();
             int number = index + 1;
             context.append('[').append(number).append("]\n문서: ")
@@ -94,57 +62,8 @@ public class SemanticChatService {
         openAi.streamAnswer(preparation.question(), preparation.context(), onDelta);
     }
 
-    private double[] parse(String json) {
-        try {
-            JsonNode node = mapper.readTree(json);
-            double[] vector = new double[node.size()];
-            for (int index = 0; index < vector.length; index++) {
-                vector[index] = node.get(index).asDouble();
-            }
-            return vector;
-        } catch (Exception exception) {
-            throw new IllegalStateException(exception);
-        }
-    }
-
-    private double cosine(double[] left, double[] right) {
-        if (left.length != right.length) {
-            return -1;
-        }
-        double dot = 0;
-        double leftLength = 0;
-        double rightLength = 0;
-        for (int index = 0; index < left.length; index++) {
-            dot += left[index] * right[index];
-            leftLength += left[index] * left[index];
-            rightLength += right[index] * right[index];
-        }
-        return leftLength == 0 || rightLength == 0
-                ? -1
-                : dot / (Math.sqrt(leftLength) * Math.sqrt(rightLength));
-    }
-
     private String excerpt(String content) {
         return content.length() <= 300 ? content : content.substring(0, 300) + "…";
-    }
-
-    private Map<SourceKey, Double> keywordScores(Long memberId, String question) {
-        Map<SourceKey, Double> scores = new HashMap<>();
-        keywordSearch.search(memberId, keywordExtractor.extract(question), keywordTopK)
-                .forEach(hit -> scores.merge(
-                        new SourceKey(hit.sourceType().name(), hit.sourceId()), hit.score(), Math::max));
-        return scores;
-    }
-
-    private double normalizeSemantic(double similarity) {
-        if (similarity <= minSimilarity) return 0.0;
-        return Math.min(1.0, (similarity - minSimilarity) / (1.0 - minSimilarity));
-    }
-
-    private record SourceKey(String sourceType, Long sourceId) {
-    }
-
-    private record ScoredChunk(IndexedChunk chunk, double semantic, double keyword, double score) {
     }
 
     public record Source(int number, Long chunkId, String sourceType, Long resourceId,

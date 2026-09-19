@@ -1,8 +1,13 @@
 package com.notevault.workspace.api.search;
 
 import java.util.List;
+import java.util.function.Consumer;
 
 public interface KeywordSearchReader {
+
+    /** Streams every accessible title/current-chunk match without a candidate cutoff. */
+    void scanHybridMatches(Long memberId, String question, List<String> keywords,
+                           Consumer<FieldKeywordHit> consumer);
 
     /**
      * Searches only sources accessible to memberId. Keeps at most limitPerKeyword hits per keyword,

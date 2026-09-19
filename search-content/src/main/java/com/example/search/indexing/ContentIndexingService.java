@@ -31,6 +31,43 @@ public class ContentIndexingService {
     }
 
     private void index(ContentSourceSnapshot source) {
+        RuntimeException failure = null;
+        try {
+            indexTitle(source);
+        } catch (RuntimeException exception) {
+            failure = exception;
+        }
+        try {
+            indexBody(source);
+        } catch (RuntimeException exception) {
+            if (failure == null) failure = exception;
+            else failure.addSuppressed(exception);
+        }
+        if (failure != null) throw failure;
+    }
+
+    public void indexTitle(ContentSourceSnapshot source) {
+        ContentIndexingTransactions.TitleWork work = transactions.prepareTitle(source, openAi.embeddingModel());
+        if (work == null) return;
+        try {
+            // The transaction that claims the title has finished before this external call.
+            List<String> vectors = openAi.embed(List.of(work.source().title()));
+            if (vectors == null || vectors.size() != 1 || vectors.getFirst() == null || vectors.getFirst().isBlank()) {
+                throw new IllegalStateException("제목 임베딩 응답이 비어 있거나 개수가 일치하지 않습니다.");
+            }
+            transactions.completeTitle(work, vectors.getFirst());
+        } catch (RuntimeException exception) {
+            try {
+                transactions.failTitle(work, exception.getMessage() == null
+                        ? exception.getClass().getSimpleName() : exception.getMessage());
+            } catch (RuntimeException recordingFailure) {
+                exception.addSuppressed(recordingFailure);
+            }
+            throw exception;
+        }
+    }
+
+    private void indexBody(ContentSourceSnapshot source) {
         // Chunking and the external API call both run without a database transaction.
         List<ChunkDraft> drafts = chunker.chunk(source.content());
         ContentIndexingTransactions.EmbeddingWork work =

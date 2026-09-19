@@ -1,6 +1,7 @@
 package com.example.workspace.search;
 
 import com.notevault.workspace.api.search.KeywordSearchHit;
+import com.notevault.workspace.api.search.FieldKeywordHit;
 import com.notevault.workspace.api.search.KeywordSearchReader;
 import com.notevault.workspace.api.search.KeywordSourceType;
 import lombok.RequiredArgsConstructor;
@@ -22,6 +23,21 @@ public class SearchService implements KeywordSearchReader {
     private static final int SNIPPET_CONTEXT_LENGTH = 5;
 
     private final SearchRepository searchRepository;
+
+    @Override
+    @Transactional(readOnly = true)
+    public void scanHybridMatches(Long memberId, String question, List<String> keywords,
+                                  java.util.function.Consumer<FieldKeywordHit> consumer) {
+        Objects.requireNonNull(memberId, "memberId");
+        Objects.requireNonNull(question, "question");
+        Objects.requireNonNull(consumer, "consumer");
+        List<String> terms = keywords.stream().filter(Objects::nonNull)
+                .map(String::strip).filter(term -> !term.isEmpty())
+                .map(term -> term.toLowerCase(Locale.ROOT)).distinct().toList();
+        if (!question.isBlank()) {
+            searchRepository.scanHybridMatches(memberId, question.strip(), terms, consumer);
+        }
+    }
 
     @Transactional(readOnly = true)
     public SearchResponse searchAllNotes(final Long memberId, final String targetWord) {

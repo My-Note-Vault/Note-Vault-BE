@@ -35,6 +35,90 @@ public class ContentIndexingTransactions {
         return readDailyNote(memberId, dailyNoteId, false);
     }
 
+    /** Internal worker backfill; never exposed through the API module. */
+    @Transactional(readOnly = true)
+    public ContentSourceSnapshot readDocumentForIndexing(Long documentId) {
+        List<ContentSourceSnapshot> result = jdbc.query("""
+                SELECT d.id, d.workspace_id, d.author_id, d.title, d.search_content,
+                       d.search_revision, d.search_content_hash, d.updated_at,
+                       CASE WHEN d.type='WORKSPACE_HOME' THEN 'space' ELSE LOWER(d.type) END AS resource_type,
+                       CASE WHEN d.type='WORKSPACE_HOME' THEN d.workspace_id ELSE d.id END AS resource_id
+                FROM document d WHERE d.id=?
+                """, (rs, row) -> snapshot(rs, ContentSourceType.DOCUMENT,
+                rs.getString("resource_type"), rs.getLong("resource_id")), documentId);
+        if (result.isEmpty()) throw new NoSuchElementException("Document를 찾을 수 없습니다");
+        return result.getFirst();
+    }
+
+    @Transactional
+    public TitleWork prepareTitle(ContentSourceSnapshot source, String model) {
+        ContentSourceSnapshot current = lockSource(source);
+        if (!Objects.equals(source.title(), current.title())) {
+            throw new ContentIndexingService.StaleContentException();
+        }
+        if (current.title() == null || current.title().isBlank()) {
+            jdbc.update("DELETE FROM content_title_embedding WHERE source_type=? AND source_id=?",
+                    current.type().name(), current.sourceId());
+            return null;
+        }
+        Integer ready = jdbc.queryForObject("""
+                SELECT COUNT(*) FROM content_title_embedding
+                WHERE source_type=? AND source_id=? AND source_title=?
+                  AND embedding_model=? AND embedding_status='READY'
+                """, Integer.class, current.type().name(), current.sourceId(), current.title(), model);
+        if (ready != null && ready > 0) return null;
+        Integer attempt = jdbc.queryForObject("""
+                INSERT INTO content_title_embedding
+                    (source_type, source_id, source_title, embedding_model, embedding_status, embedding_attempts)
+                VALUES (?, ?, ?, ?, 'PROCESSING', 1)
+                ON CONFLICT (source_type, source_id) DO UPDATE
+                SET source_title=EXCLUDED.source_title, embedding_model=EXCLUDED.embedding_model,
+                    embedding=NULL, embedding_status='PROCESSING', embedding_error=NULL,
+                    embedding_attempts=content_title_embedding.embedding_attempts+1,
+                    updated_at=CURRENT_TIMESTAMP
+                RETURNING embedding_attempts
+                """, Integer.class, current.type().name(), current.sourceId(), current.title(), model);
+        return new TitleWork(current, model, Objects.requireNonNull(attempt));
+    }
+
+    @Transactional
+    public void completeTitle(TitleWork work, String vector) {
+        ContentSourceSnapshot current = lockSource(work.source());
+        if (!Objects.equals(work.source().title(), current.title())) {
+            throw new ContentIndexingService.StaleContentException();
+        }
+        int changed = jdbc.update("""
+                UPDATE content_title_embedding SET embedding=?, embedding_status='READY',
+                    embedding_error=NULL, updated_at=CURRENT_TIMESTAMP
+                WHERE source_type=? AND source_id=? AND source_title=? AND embedding_model=?
+                  AND embedding_attempts=? AND embedding_status='PROCESSING'
+                """, vector, current.type().name(), current.sourceId(), current.title(), work.model(), work.attempt());
+        if (changed == 0) {
+            Integer ready = jdbc.queryForObject("""
+                    SELECT COUNT(*) FROM content_title_embedding
+                    WHERE source_type=? AND source_id=? AND source_title=?
+                      AND embedding_model=? AND embedding_status='READY'
+                    """, Integer.class, current.type().name(), current.sourceId(), current.title(), work.model());
+            if (ready == null || ready == 0) throw new ContentIndexingService.StaleContentException();
+        }
+    }
+
+    @Transactional
+    public void failTitle(TitleWork work, String error) {
+        try {
+            lockSource(work.source());
+        } catch (NoSuchElementException deleted) {
+            return;
+        }
+        jdbc.update("""
+                UPDATE content_title_embedding SET embedding_status='FAILED', embedding_error=?,
+                    updated_at=CURRENT_TIMESTAMP
+                WHERE source_type=? AND source_id=? AND source_title=? AND embedding_model=?
+                  AND embedding_attempts=? AND embedding_status='PROCESSING'
+                """, error, work.source().type().name(), work.source().sourceId(), work.source().title(),
+                work.model(), work.attempt());
+    }
+
     @Transactional
     public EmbeddingWork prepare(ContentSourceSnapshot source, List<ChunkDraft> drafts, String model) {
         ContentSourceSnapshot current = lockSource(source);
@@ -165,7 +249,8 @@ public class ContentIndexingTransactions {
     private void requireCurrent(ContentSourceSnapshot source, ContentSourceSnapshot current) {
         if (!Objects.equals(source.contentHash(), current.contentHash())
                 || !Objects.equals(source.revision(), current.revision())
-                || !Objects.equals(source.sourceUpdatedAt(), current.sourceUpdatedAt())) {
+                || (source.type() == ContentSourceType.DOCUMENT
+                    && !Objects.equals(source.sourceUpdatedAt(), current.sourceUpdatedAt()))) {
             throw new ContentIndexingService.StaleContentException();
         }
     }
@@ -227,6 +312,9 @@ public class ContentIndexingTransactions {
     }
 
     public record EmbeddingTarget(Long id, String content, String hash, int attempt) {
+    }
+
+    public record TitleWork(ContentSourceSnapshot source, String model, int attempt) {
     }
 
     public record EmbeddingWork(ContentSourceSnapshot source, String model, List<EmbeddingTarget> targets) {
