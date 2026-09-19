@@ -9,6 +9,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 import java.util.Objects;
+import java.util.NoSuchElementException;
 
 @RequiredArgsConstructor
 @Service
@@ -28,6 +29,22 @@ public class ContentIndexingService {
 
     public void indexDailyNote(Long memberId, Long dailyNoteId) {
         index(transactions.readDailyNote(memberId, dailyNoteId));
+    }
+
+    /** Worker entry point for a Plan content change; each linked note keeps its own index. */
+    public void indexDailyNotesForPlan(Long planId) {
+        RuntimeException failure = null;
+        for (ContentIndexingTransactions.DailyNoteReference note : transactions.findDailyNotesLinkedToPlan(planId)) {
+            try {
+                indexDailyNote(note.ownerId(), note.id());
+            } catch (NoSuchElementException deleted) {
+                // The note may have been deleted after its link was read.
+            } catch (RuntimeException exception) {
+                if (failure == null) failure = exception;
+                else failure.addSuppressed(exception);
+            }
+        }
+        if (failure != null) throw failure;
     }
 
     private void index(ContentSourceSnapshot source) {

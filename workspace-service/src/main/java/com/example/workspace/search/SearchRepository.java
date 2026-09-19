@@ -45,7 +45,12 @@ public class SearchRepository {
                                   WHERE wm.workspace_id = d.workspace_id AND wm.member_id = :memberId)
                     UNION ALL
                     SELECT 'DAILY_NOTE', n.id, CAST(n.logical_date AS VARCHAR),
-                           CAST(n.content_revision AS VARCHAR)
+                           encode(sha256(convert_to(
+                               COALESCE(n.content, '') || COALESCE((
+                                   SELECT string_agg(E'\\n\\n' || p.content, '' ORDER BY p.id)
+                                   FROM daily_note_plan dnp JOIN plan p ON p.id=dnp.plan_id
+                                   WHERE dnp.daily_note_id=n.id AND p.content IS NOT NULL AND p.content <> ''
+                               ), ''), 'UTF8')), 'hex')
                     FROM daily_note n WHERE n.author_id = :memberId
                 ), fields AS (
                     SELECT source_type, source_id, CAST(NULL AS BIGINT) AS chunk_id, title AS text

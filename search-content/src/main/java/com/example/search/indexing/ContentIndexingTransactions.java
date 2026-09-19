@@ -27,12 +27,52 @@ public class ContentIndexingTransactions {
 
     @Transactional(readOnly = true)
     public ContentSourceSnapshot readDocument(Long memberId, String type, Long resourceId) {
-        return readDocument(memberId, type, resourceId, false);
+        if ("space".equalsIgnoreCase(type)) {
+            return readWorkspaceHome(memberId, resourceId);
+        }
+        String resourceType = type.toLowerCase(Locale.ROOT);
+        List<ContentSourceSnapshot> documents = jdbc.query("""
+                SELECT d.id, d.workspace_id, d.author_id, d.title, d.search_content,
+                       d.search_revision, d.search_content_hash, d.updated_at
+                FROM document d
+                JOIN workspace_member wm ON wm.workspace_id = d.workspace_id AND wm.member_id = ?
+                WHERE d.id = ? AND LOWER(d.type) = ?
+                """, (rs, row) -> snapshot(rs, ContentSourceType.DOCUMENT, resourceType, resourceId),
+                memberId, resourceId, resourceType);
+        return requireDocument(documents);
     }
 
     @Transactional(readOnly = true)
     public ContentSourceSnapshot readDailyNote(Long memberId, Long dailyNoteId) {
-        return readDailyNote(memberId, dailyNoteId, false);
+        return findDailyNoteSnapshot(memberId, dailyNoteId);
+    }
+
+    private ContentSourceSnapshot findDailyNoteSnapshot(Long memberId, Long dailyNoteId) {
+        List<ContentSourceSnapshot> notes = jdbc.query("""
+                SELECT n.id, NULL AS workspace_id, n.author_id,
+                       CAST(n.logical_date AS VARCHAR) AS title,
+                       COALESCE(n.content, '') || COALESCE((
+                           SELECT string_agg(E'\\n\\n' || p.content, '' ORDER BY p.id)
+                           FROM daily_note_plan dnp JOIN plan p ON p.id = dnp.plan_id
+                           WHERE dnp.daily_note_id = n.id AND p.content IS NOT NULL AND p.content <> ''
+                       ), '') AS content,
+                       n.content_revision AS search_revision, NULL AS search_content_hash, n.updated_at
+                FROM daily_note n WHERE n.id = ? AND n.author_id = ?
+                """, (rs, row) -> snapshot(rs, ContentSourceType.DAILY_NOTE, "daily", dailyNoteId),
+                dailyNoteId, memberId);
+        if (notes.isEmpty()) {
+            throw new NoSuchElementException("DailyNote를 찾을 수 없습니다");
+        }
+        return notes.getFirst();
+    }
+
+    @Transactional(readOnly = true)
+    public List<DailyNoteReference> findDailyNotesLinkedToPlan(Long planId) {
+        return jdbc.query("""
+                SELECT n.id, n.author_id FROM daily_note n
+                JOIN daily_note_plan dnp ON dnp.daily_note_id=n.id
+                WHERE dnp.plan_id=? ORDER BY n.id
+                """, (rs, row) -> new DailyNoteReference(rs.getLong("id"), rs.getLong("author_id")), planId);
     }
 
     /** Internal worker backfill; never exposed through the API module. */
@@ -46,13 +86,12 @@ public class ContentIndexingTransactions {
                 FROM document d WHERE d.id=?
                 """, (rs, row) -> snapshot(rs, ContentSourceType.DOCUMENT,
                 rs.getString("resource_type"), rs.getLong("resource_id")), documentId);
-        if (result.isEmpty()) throw new NoSuchElementException("Document를 찾을 수 없습니다");
-        return result.getFirst();
+        return requireDocument(result);
     }
 
     @Transactional
     public TitleWork prepareTitle(ContentSourceSnapshot source, String model) {
-        ContentSourceSnapshot current = lockSource(source);
+        ContentSourceSnapshot current = lockAndReadSource(source);
         if (!Objects.equals(source.title(), current.title())) {
             throw new ContentIndexingService.StaleContentException();
         }
@@ -83,7 +122,7 @@ public class ContentIndexingTransactions {
 
     @Transactional
     public void completeTitle(TitleWork work, String vector) {
-        ContentSourceSnapshot current = lockSource(work.source());
+        ContentSourceSnapshot current = lockAndReadSource(work.source());
         if (!Objects.equals(work.source().title(), current.title())) {
             throw new ContentIndexingService.StaleContentException();
         }
@@ -106,7 +145,7 @@ public class ContentIndexingTransactions {
     @Transactional
     public void failTitle(TitleWork work, String error) {
         try {
-            lockSource(work.source());
+            lockAndReadSource(work.source());
         } catch (NoSuchElementException deleted) {
             return;
         }
@@ -121,7 +160,7 @@ public class ContentIndexingTransactions {
 
     @Transactional
     public EmbeddingWork prepare(ContentSourceSnapshot source, List<ChunkDraft> drafts, String model) {
-        ContentSourceSnapshot current = lockSource(source);
+        ContentSourceSnapshot current = lockAndReadSource(source);
         requireCurrent(source, current);
         synchronize(current, drafts, model);
         List<ContentChunk> targets = chunks.findEmbeddingTargets(
@@ -137,7 +176,8 @@ public class ContentIndexingTransactions {
 
     @Transactional
     public void complete(EmbeddingWork work, List<String> vectors) {
-        requireCurrent(work.source(), lockSource(work.source()));
+        ContentSourceSnapshot currentSource = lockAndReadSource(work.source());
+        requireCurrent(work.source(), currentSource);
         Map<Long, ContentChunk> current = chunksById(work.source());
         // A newer attempt owns the result if the same event was processed concurrently.
         if (work.targets().stream().anyMatch(target -> !owns(current.get(target.id()), target, work))) {
@@ -163,7 +203,7 @@ public class ContentIndexingTransactions {
     @Transactional
     public void fail(EmbeddingWork work, String error) {
         try {
-            lockSource(work.source());
+            lockAndReadSource(work.source());
         } catch (NoSuchElementException deleted) {
             return;
         }
@@ -240,63 +280,75 @@ public class ContentIndexingTransactions {
         chunks.saveAllAndFlush(add);
     }
 
-    private ContentSourceSnapshot lockSource(ContentSourceSnapshot source) {
-        return source.type() == ContentSourceType.DOCUMENT
-                ? readDocumentById(source.sourceId(), source.resourceType(), source.resourceId(), true)
-                : readDailyNote(source.ownerId(), source.sourceId(), true);
+    private ContentSourceSnapshot lockAndReadSource(ContentSourceSnapshot source) {
+        return switch (source.type()) {
+            case DOCUMENT -> lockAndReadDocument(source);
+            case DAILY_NOTE -> lockAndReadDailyNote(source.ownerId(), source.sourceId());
+        };
     }
 
     private void requireCurrent(ContentSourceSnapshot source, ContentSourceSnapshot current) {
         if (!Objects.equals(source.contentHash(), current.contentHash())
-                || !Objects.equals(source.revision(), current.revision())
                 || (source.type() == ContentSourceType.DOCUMENT
-                    && !Objects.equals(source.sourceUpdatedAt(), current.sourceUpdatedAt()))) {
+                    && (!Objects.equals(source.revision(), current.revision())
+                        || !Objects.equals(source.sourceUpdatedAt(), current.sourceUpdatedAt())))) {
             throw new ContentIndexingService.StaleContentException();
         }
     }
 
-    private ContentSourceSnapshot readDocument(Long memberId, String type, Long resourceId, boolean lock) {
-        if ("space".equalsIgnoreCase(type)) {
-            return one("SELECT d.id,d.workspace_id,d.author_id,d.title,d.search_content,d.search_revision,d.search_content_hash,d.updated_at "
-                            + "FROM document d JOIN workspace_member wm ON wm.workspace_id=d.workspace_id AND wm.member_id=? "
-                            + "WHERE d.workspace_id=? AND d.type='WORKSPACE_HOME'" + (lock ? " FOR UPDATE OF d" : ""),
-                    memberId, resourceId, "space", resourceId, ContentSourceType.DOCUMENT);
-        }
-        return one("SELECT d.id,d.workspace_id,d.author_id,d.title,d.search_content,d.search_revision,d.search_content_hash,d.updated_at "
-                        + "FROM document d JOIN workspace_member wm ON wm.workspace_id=d.workspace_id AND wm.member_id=? "
-                        + "WHERE d.id=? AND LOWER(d.type)=?" + (lock ? " FOR UPDATE OF d" : ""),
-                memberId, resourceId, type.toLowerCase(Locale.ROOT), resourceId, ContentSourceType.DOCUMENT);
+    private ContentSourceSnapshot readWorkspaceHome(Long memberId, Long workspaceId) {
+        List<ContentSourceSnapshot> documents = jdbc.query("""
+                SELECT d.id, d.workspace_id, d.author_id, d.title, d.search_content,
+                       d.search_revision, d.search_content_hash, d.updated_at
+                FROM document d
+                JOIN workspace_member wm ON wm.workspace_id = d.workspace_id AND wm.member_id = ?
+                WHERE d.workspace_id = ? AND d.type = 'WORKSPACE_HOME'
+                """, (rs, row) -> snapshot(rs, ContentSourceType.DOCUMENT, "space", workspaceId),
+                memberId, workspaceId);
+        return requireDocument(documents);
     }
 
-    private ContentSourceSnapshot readDocumentById(Long id, String resourceType, Long resourceId, boolean lock) {
-        return one("SELECT d.id,d.workspace_id,d.author_id,d.title,d.search_content,d.search_revision,d.search_content_hash,d.updated_at "
-                        + "FROM document d WHERE d.id=?" + (lock ? " FOR UPDATE" : ""),
-                null, id, resourceType, resourceId, ContentSourceType.DOCUMENT);
+    private ContentSourceSnapshot lockAndReadDocument(ContentSourceSnapshot source) {
+        List<ContentSourceSnapshot> documents = jdbc.query("""
+                SELECT d.id, d.workspace_id, d.author_id, d.title, d.search_content,
+                       d.search_revision, d.search_content_hash, d.updated_at
+                FROM document d WHERE d.id = ? FOR UPDATE
+                """, (rs, row) -> snapshot(rs, ContentSourceType.DOCUMENT, source.resourceType(), source.resourceId()),
+                source.sourceId());
+        return requireDocument(documents);
     }
 
-    private ContentSourceSnapshot readDailyNote(Long memberId, Long id, boolean lock) {
-        String sql = "SELECT n.id,NULL AS workspace_id,n.author_id,CAST(n.logical_date AS VARCHAR) AS title,n.content,"
-                + "n.content_revision AS search_revision,NULL AS search_content_hash,n.updated_at FROM daily_note n "
-                + "WHERE n.id=? AND n.author_id=?" + (lock ? " FOR UPDATE" : "");
-        List<ContentSourceSnapshot> result = jdbc.query(
-                sql, (rs, row) -> snapshot(rs, ContentSourceType.DAILY_NOTE, "daily", id), id, memberId);
-        if (result.isEmpty()) {
+    private ContentSourceSnapshot lockAndReadDailyNote(Long memberId, Long dailyNoteId) {
+        lockDailyNote(memberId, dailyNoteId);
+        lockLinkedPlans(dailyNoteId);
+        // Read after all locks are acquired, using the surrounding write transaction.
+        return findDailyNoteSnapshot(memberId, dailyNoteId);
+    }
+
+    private void lockDailyNote(Long memberId, Long dailyNoteId) {
+        List<Long> notes = jdbc.query("""
+                SELECT id FROM daily_note WHERE id = ? AND author_id = ? FOR UPDATE
+                """, (rs, row) -> rs.getLong("id"), dailyNoteId, memberId);
+        if (notes.isEmpty()) {
             throw new NoSuchElementException("DailyNote를 찾을 수 없습니다");
         }
-        return result.getFirst();
     }
 
-    private ContentSourceSnapshot one(String sql, Long memberId, Long id, String type,
-                                      Long resourceId, ContentSourceType sourceType) {
-        Object[] args = memberId == null
-                ? new Object[]{id}
-                : "space".equals(type) ? new Object[]{memberId, id} : new Object[]{memberId, id, type};
-        List<ContentSourceSnapshot> result = jdbc.query(
-                sql, (rs, row) -> snapshot(rs, sourceType, type, resourceId), args);
-        if (result.isEmpty()) {
+    private void lockLinkedPlans(Long dailyNoteId) {
+        jdbc.query("""
+                SELECT p.id
+                FROM daily_note_plan dnp JOIN plan p ON p.id = dnp.plan_id
+                WHERE dnp.daily_note_id = ?
+                ORDER BY p.id
+                FOR SHARE OF p, dnp
+                """, (rs, row) -> rs.getLong("id"), dailyNoteId);
+    }
+
+    private ContentSourceSnapshot requireDocument(List<ContentSourceSnapshot> documents) {
+        if (documents.isEmpty()) {
             throw new NoSuchElementException("Document를 찾을 수 없습니다");
         }
-        return result.getFirst();
+        return documents.getFirst();
     }
 
     private ContentSourceSnapshot snapshot(java.sql.ResultSet rs, ContentSourceType type,
@@ -312,6 +364,9 @@ public class ContentIndexingTransactions {
     }
 
     public record EmbeddingTarget(Long id, String content, String hash, int attempt) {
+    }
+
+    public record DailyNoteReference(Long id, Long ownerId) {
     }
 
     public record TitleWork(ContentSourceSnapshot source, String model, int attempt) {

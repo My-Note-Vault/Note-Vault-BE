@@ -16,6 +16,8 @@ public record ContentSourceSnapshot(
         LocalDateTime sourceUpdatedAt
 ) {
     public String version() {
+        // DailyNote's indexing source also includes linked Plans, which do not change its body revision.
+        if (type == ContentSourceType.DAILY_NOTE) return contentHash;
         return revision == null ? contentHash : String.valueOf(revision);
     }
 }
