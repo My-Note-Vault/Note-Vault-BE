@@ -32,6 +32,7 @@ import java.time.LocalDateTime;
 import java.util.Base64;
 import java.util.Map;
 import java.util.NoSuchElementException;
+import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -251,17 +252,14 @@ public class OAuthService {
 
     @Transactional
     public TokenResponse issueTokens(OAuthUserInfo userInfo) {
+        String sessionId = UUID.randomUUID().toString();
         String accessToken = jwtService.createAccessToken(userInfo.getUserId(), userInfo.getEmail());
-        String refreshToken = jwtService.createRefreshToken(userInfo.getUserId(), userInfo.getEmail());
+        String refreshToken = jwtService.createRefreshToken(userInfo.getUserId(), userInfo.getEmail(), sessionId);
         String refreshTokenHash = hashToken(refreshToken);
 
-        refreshTokenRepository.findByMemberId(userInfo.getUserId())
-                .ifPresentOrElse(
-                        savedToken -> savedToken.update(refreshTokenHash, jwtService.getExpiration(refreshToken)),
-                        () -> refreshTokenRepository.save(
-                                RefreshToken.create(userInfo.getUserId(), refreshTokenHash, jwtService.getExpiration(refreshToken))
-                        )
-                );
+        refreshTokenRepository.save(
+                RefreshToken.create(userInfo.getUserId(), sessionId, refreshTokenHash, jwtService.getExpiration(refreshToken))
+        );
         return new TokenResponse(accessToken, refreshToken);
     }
 
@@ -271,12 +269,14 @@ public class OAuthService {
             throw new UnauthorizedException("유효하지 않은 refresh 토큰입니다");
         }
         Long memberId = jwtService.getMemberId(refreshToken);
-        RefreshToken savedRefreshToken = refreshTokenRepository.findByMemberId(memberId)
+        String sessionId = jwtService.getSessionId(refreshToken);
+        String refreshTokenHash = hashToken(refreshToken);
+        RefreshToken savedRefreshToken = findRefreshToken(memberId, sessionId, refreshTokenHash)
                 .orElseThrow(() -> new UnauthorizedException("저장된 refresh 토큰이 없습니다"));
 
         if (!MessageDigest.isEqual(
                 savedRefreshToken.getToken().getBytes(StandardCharsets.US_ASCII),
-                hashToken(refreshToken).getBytes(StandardCharsets.US_ASCII)
+                refreshTokenHash.getBytes(StandardCharsets.US_ASCII)
         )) {
             throw new UnauthorizedException("저장된 refresh 토큰과 일치하지 않습니다");
         }
@@ -286,8 +286,9 @@ public class OAuthService {
         String newAccessToken = jwtService.createAccessToken(member.getId(), member.getEmail());
         String newRefreshToken = null;
 
-        if (shouldRenewRefreshToken(savedRefreshToken)) {
-            newRefreshToken = jwtService.createRefreshToken(member.getId(), member.getEmail());
+        // 기존 JWT도 저장된 해시가 일치하면 같은 세션의 새 형식으로 전환한다.
+        if (sessionId == null || shouldRenewRefreshToken(savedRefreshToken)) {
+            newRefreshToken = jwtService.createRefreshToken(member.getId(), member.getEmail(), savedRefreshToken.getSessionId());
             savedRefreshToken.update(hashToken(newRefreshToken), jwtService.getExpiration(newRefreshToken));
         }
 
@@ -307,12 +308,26 @@ public class OAuthService {
         }
 
         Long memberId = jwtService.getMemberId(refreshToken);
-        refreshTokenRepository.findByMemberId(memberId)
+        String sessionId = jwtService.getSessionId(refreshToken);
+        String refreshTokenHash = hashToken(refreshToken);
+        findRefreshToken(memberId, sessionId, refreshTokenHash)
                 .filter(saved -> MessageDigest.isEqual(
                         saved.getToken().getBytes(StandardCharsets.US_ASCII),
-                        hashToken(refreshToken).getBytes(StandardCharsets.US_ASCII)
+                        refreshTokenHash.getBytes(StandardCharsets.US_ASCII)
                 ))
                 .ifPresent(refreshTokenRepository::delete);
+    }
+
+    private Optional<RefreshToken> findRefreshToken(
+            final Long memberId,
+            final String sessionId,
+            final String refreshTokenHash
+    ) {
+        if (sessionId == null) {
+            // 전환 전 JWT는 회원 ID와 정확한 토큰 해시가 일치하는 세션만 허용한다.
+            return refreshTokenRepository.findByMemberIdAndToken(memberId, refreshTokenHash);
+        }
+        return refreshTokenRepository.findBySessionIdAndMemberId(sessionId, memberId);
     }
 
     private String hashToken(final String token) {

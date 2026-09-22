@@ -1,10 +1,16 @@
 package com.example.platformservice.auth.component;
 
+import jakarta.persistence.LockModeType;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Lock;
 
 import java.util.Optional;
 
 public interface RefreshTokenRepository extends JpaRepository<RefreshToken, Long> {
 
-    Optional<RefreshToken> findByMemberId(Long memberId);
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    Optional<RefreshToken> findBySessionIdAndMemberId(String sessionId, Long memberId);
+
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    Optional<RefreshToken> findByMemberIdAndToken(Long memberId, String token);
 }

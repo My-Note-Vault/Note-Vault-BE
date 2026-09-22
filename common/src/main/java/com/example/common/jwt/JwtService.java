@@ -1,6 +1,7 @@
 package com.example.common.jwt;
 
 import io.jsonwebtoken.Claims;
+import io.jsonwebtoken.JwtBuilder;
 import io.jsonwebtoken.JwtException;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.security.Keys;
@@ -26,6 +27,7 @@ public class JwtService {
     private Duration refreshTokenExpiration;
 
     private static final String MEMBER_ID_CLAIM = "memberId";
+    private static final String SESSION_ID_CLAIM = "sessionId";
     private static final String TOKEN_TYPE_CLAIM = "tokenType";
     private static final String ACCESS_TOKEN_TYPE = "ACCESS";
     private static final String REFRESH_TOKEN_TYPE = "REFRESH";
@@ -35,11 +37,14 @@ public class JwtService {
     }
 
     public String createAccessToken(final Long memberId, final String email) {
-        return createToken(memberId, email, ACCESS_TOKEN_TYPE, accessTokenExpiration.toMillis());
+        return createToken(memberId, email, ACCESS_TOKEN_TYPE, accessTokenExpiration.toMillis(), null);
     }
 
-    public String createRefreshToken(final Long memberId, final String email) {
-        return createToken(memberId, email, REFRESH_TOKEN_TYPE, refreshTokenExpiration.toMillis());
+    public String createRefreshToken(final Long memberId, final String email, final String sessionId) {
+        if (sessionId == null || sessionId.isBlank()) {
+            throw new IllegalArgumentException("refresh 토큰에는 sessionId가 필요합니다");
+        }
+        return createToken(memberId, email, REFRESH_TOKEN_TYPE, refreshTokenExpiration.toMillis(), sessionId);
     }
 
     public boolean isInvalidToken(final String token) {
@@ -63,6 +68,10 @@ public class JwtService {
         return getClaims(token).get(MEMBER_ID_CLAIM, Long.class);
     }
 
+    public String getSessionId(final String token) {
+        return getClaims(token).get(SESSION_ID_CLAIM, String.class);
+    }
+
     public LocalDateTime getExpiration(final String token) {
         Instant expiration = getClaims(token).getExpiration().toInstant();
         return LocalDateTime.ofInstant(expiration, ZoneOffset.UTC);
@@ -72,17 +81,20 @@ public class JwtService {
             final Long memberId,
             final String email,
             final String tokenType,
-            final long expiration
+            final long expiration,
+            final String sessionId
     ) {
-        return Jwts.builder()
+        JwtBuilder builder = Jwts.builder()
                 .setId(UUID.randomUUID().toString())
                 .setSubject(email)
                 .claim(MEMBER_ID_CLAIM, memberId)
                 .claim(TOKEN_TYPE_CLAIM, tokenType)
                 .setIssuedAt(new Date())
-                .setExpiration(new Date(System.currentTimeMillis() + expiration))
-                .signWith(key)
-                .compact();
+                .setExpiration(new Date(System.currentTimeMillis() + expiration));
+        if (sessionId != null) {
+            builder.claim(SESSION_ID_CLAIM, sessionId);
+        }
+        return builder.signWith(key).compact();
     }
 
     private String getTokenType(final String token) {
