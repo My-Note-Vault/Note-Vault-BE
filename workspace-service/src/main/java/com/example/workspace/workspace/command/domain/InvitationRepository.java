@@ -9,4 +9,6 @@ public interface InvitationRepository extends JpaRepository<Invitation, Long> {
 
     @Query("SELECT i FROM Invitation i WHERE i.code = :code")
     Optional<Invitation> findByCode(String code);
+
+    void deleteAllByWorkSpaceId(Long workSpaceId);
 }

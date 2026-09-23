@@ -2,6 +2,7 @@ package com.example.workspace.document.command.application;
 
 import com.example.common.exception.ForbiddenException;
 import com.example.common.file.image.ImageUtils;
+import com.example.search.sync.SearchSyncRecorder;
 import com.example.workspace.document.command.domain.Document;
 import com.example.workspace.document.command.domain.DocumentDelta;
 import com.example.workspace.document.command.domain.DocumentDeltaRepository;
@@ -21,6 +22,7 @@ import java.time.LocalDateTime;
 import java.time.LocalDate;
 import java.time.ZoneId;
 import java.util.NoSuchElementException;
+import java.util.Objects;
 
 @RequiredArgsConstructor
 @Service
@@ -34,6 +36,7 @@ public class DocumentCommandService {
     private final ParticipantRepository participantRepository;
     private final WorkSpaceRepository workSpaceRepository;
     private final ImageUtils imageUtils;
+    private final SearchSyncRecorder searchSyncRecorder;
 
     @Transactional
     public Long createDocument(
@@ -56,10 +59,15 @@ public class DocumentCommandService {
         }
         validateParticipant(resolvedWorkSpaceId, memberId, type);
 
+        // Workspace deletion holds the same lock while collecting and deleting its documents.
+        workSpaceRepository.findWithWriteLockById(resolvedWorkSpaceId)
+                .orElseThrow(() -> new NoSuchElementException("WorkSpace 를 찾을 수 없습니다"));
+
         Document document = type == DocumentType.TASK
                 ? Document.task(resolvedWorkSpaceId, parentId, memberId)
                 : Document.note(resolvedWorkSpaceId, parentId, memberId);
         documentRepository.save(document);
+        recordRefresh(document);
         return document.getId();
     }
 
@@ -72,13 +80,12 @@ public class DocumentCommandService {
         return documentRepository
                 .findByWorkSpaceIdAndType(workSpaceId, DocumentType.WORKSPACE_HOME)
                 .map(Document::getId)
-                .orElseGet(() -> documentRepository.save(
-                        Document.workspaceHome(
-                                workSpaceId,
-                                workSpace.getCreatorId(),
-                                workSpace.getContent()
-                        )
-                ).getId());
+                .orElseGet(() -> {
+                    Document home = documentRepository.save(Document.workspaceHome(
+                            workSpaceId, workSpace.getCreatorId(), workSpace.getContent()));
+                    recordRefresh(home);
+                    return home.getId();
+                });
     }
 
     @Transactional
@@ -93,7 +100,7 @@ public class DocumentCommandService {
             final LocalDateTime endDateTime,
             final Boolean isPublic
     ) {
-        Document document = findByIdAndType(documentId, type);
+        Document document = findForUpdate(documentId, type);
         validateParticipant(document.getWorkSpaceId(), memberId, type);
 
         if (parentId != null) {
@@ -103,9 +110,13 @@ public class DocumentCommandService {
             document.moveTo(parent);
         }
 
+        String oldTitle = document.getTitle();
         document.edit(title, null, null, status, startDateTime, endDateTime, isPublic);
 
         documentRepository.save(document);
+        if (!Objects.equals(oldTitle, document.getTitle())) {
+            recordRefresh(document);
+        }
     }
 
     @Transactional
@@ -119,8 +130,9 @@ public class DocumentCommandService {
             final LocalDateTime endDateTime,
             final Boolean isPublic
     ) {
-        Document document = findByIdAndType(documentId, type);
+        Document document = findForUpdate(documentId, type);
         validateParticipant(document.getWorkSpaceId(), memberId, type);
+        String oldTitle = document.getTitle();
         document.edit(
                 title,
                 null,
@@ -131,11 +143,14 @@ public class DocumentCommandService {
                 isPublic
         );
         documentRepository.save(document);
+        if (!Objects.equals(oldTitle, document.getTitle())) {
+            recordRefresh(document);
+        }
     }
 
     @Transactional
     public void deleteDocument(final Long memberId, final Long documentId, final DocumentType type) {
-        Document document = findByIdAndType(documentId, type);
+        Document document = findForUpdate(documentId, type);
         validateParticipant(document.getWorkSpaceId(), memberId, type);
 
         if (!document.getAuthorId().equals(memberId)) {
@@ -147,6 +162,7 @@ public class DocumentCommandService {
             child.reparentTo(document.getParentId());
             documentRepository.save(child);
         });
+        searchSyncRecorder.deleteDocument(documentId);
         documentRepository.delete(document);
     }
 
@@ -215,12 +231,18 @@ public class DocumentCommandService {
         if (updated) {
             imageUtils.deleteRemovedContentImages(oldSearchContent, searchContent);
             documentRepository.save(document);
+            recordRefresh(document);
         }
         return updated;
     }
 
-    private Document findByIdAndType(final Long id, final DocumentType type) {
-        return documentRepository.findByIdAndType(id, type)
+    private void recordRefresh(Document document) {
+        searchSyncRecorder.refreshDocument(document.getId(),
+                Objects.requireNonNullElse(document.getSearchRevision(), 0L));
+    }
+
+    private Document findForUpdate(final Long id, final DocumentType type) {
+        return documentRepository.findWithLockByIdAndType(id, type)
                 .orElseThrow(() -> new NoSuchElementException(type.notFoundMessage()));
     }
 

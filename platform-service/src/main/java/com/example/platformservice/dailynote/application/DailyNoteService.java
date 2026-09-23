@@ -11,6 +11,7 @@ import com.example.platformservice.dailynote.domain.*;
 import com.example.platformservice.member.domain.Member;
 import com.example.platformservice.member.domain.value.DayStartTime;
 import com.example.platformservice.member.infra.MemberRepository;
+import com.example.search.sync.SearchSyncRecorder;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -18,6 +19,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.NoSuchElementException;
+import java.util.Objects;
 import java.util.Optional;
 
 import static com.example.platformservice.PlatformConst.*;
@@ -33,6 +35,7 @@ public class DailyNoteService {
 
     private final MemberRepository memberRepository;
     private final ImageUtils imageUtils;
+    private final SearchSyncRecorder searchSyncRecorder;
 
     @Transactional
     public Long addPlan(final Long authorId, final Long dailyNoteId, final Type type, final String content) {
@@ -48,6 +51,7 @@ public class DailyNoteService {
 
         DailyNotePlan dailyNotePlan = new DailyNotePlan(dailyNote, plan);
         dailyNotePlanRepository.save(dailyNotePlan);
+        searchSyncRecorder.refreshDailyNote(dailyNoteId, dailyNote.getContentRevision());
         return plan.getId();
     }
 
@@ -70,9 +74,13 @@ public class DailyNoteService {
             throw new NoSuchElementException(NO_PLAN_MESSAGE);
         }
 
-        Plan plan = planRepository.findById(planId)
+        Plan plan = planRepository.findWithWriteLockById(planId)
                 .orElseThrow(() -> new NoSuchElementException(NO_PLAN_MESSAGE));
+        String oldContent = plan.getContent();
         plan.edit(type, content, isDone);
+        if (!Objects.equals(oldContent, plan.getContent())) {
+            recordPlanRefreshes(dailyNotePlanRepository.findSearchTargetsByPlanId(planId));
+        }
     }
 
     @Transactional
@@ -83,11 +91,17 @@ public class DailyNoteService {
             throw new IllegalArgumentException(ACCESS_DENIED);
         }
 
-        Plan plan = planRepository.findById(planId)
+        if (!dailyNotePlanRepository.existsByDailyNote_IdAndPlan_Id(dailyNoteId, planId)) {
+            throw new NoSuchElementException(NO_PLAN_MESSAGE);
+        }
+        Plan plan = planRepository.findWithWriteLockById(planId)
                 .orElseThrow(() -> new NoSuchElementException(NO_PLAN_MESSAGE));
 
-        planRepository.delete(plan);
+        List<DailyNotePlanRepository.SearchTarget> targets =
+                dailyNotePlanRepository.findSearchTargetsByPlanId(planId);
         dailyNotePlanRepository.deleteAllByPlan(plan);
+        planRepository.delete(plan);
+        recordPlanRefreshes(targets);
     }
 
     @Transactional
@@ -118,6 +132,7 @@ public class DailyNoteService {
             throw new ConflictException("DailyNote가 다른 곳에서 수정되었습니다");
         }
         imageUtils.deleteRemovedContentImages(oldContent, content);
+        searchSyncRecorder.refreshDailyNote(dailyNoteId, expectedRevision + 1);
         return expectedRevision + 1;
     }
 
@@ -130,8 +145,9 @@ public class DailyNoteService {
             throw new IllegalArgumentException(ACCESS_DENIED);
         }
         imageUtils.deleteAllContentImages(dailyNote.getContent());
-        dailyNoteRepository.delete(dailyNote);
+        searchSyncRecorder.deleteDailyNote(dailyNoteId);
         dailyNotePlanRepository.deleteAllByDailyNote(dailyNote);
+        dailyNoteRepository.delete(dailyNote);
     }
 
     @Transactional(readOnly = true)
@@ -179,7 +195,7 @@ public class DailyNoteService {
             Optional<DailyNote> latestDailyNote = dailyNoteRepository.findLatestDailyNoteBefore(authorId, logicalToday);
             if (latestDailyNote.isPresent()) {
                 Long latestDailyNoteId = latestDailyNote.get().getId();
-                List<Plan> allIncompletePlans = dailyNotePlanRepository.findAllIncompletePlansByDailyNoteId(latestDailyNoteId);
+                List<Plan> allIncompletePlans = planRepository.findIncompleteForCarryOver(latestDailyNoteId);
 
                 List<DailyNotePlan> dailyNotePlans = allIncompletePlans.stream()
                         .map(plan -> new DailyNotePlan(dailyNote, plan))
@@ -192,6 +208,7 @@ public class DailyNoteService {
             } else {
                 allIncompletePlanResponses = List.of();
             }
+            searchSyncRecorder.refreshDailyNote(dailyNote.getId(), dailyNote.getContentRevision());
         } else {
             dailyNote = todayNote.get();
             List<Plan> allIncompletePlans = dailyNotePlanRepository.findAllPlansByDailyNoteId(dailyNote.getId());
@@ -225,5 +242,10 @@ public class DailyNoteService {
                     .orElseThrow(() -> new NoSuchElementException("일치하는 DailyNote 폴더가 없습니다"));
         }
         dailyNote.moveToFolder(folderId);
+    }
+
+    private void recordPlanRefreshes(List<DailyNotePlanRepository.SearchTarget> targets) {
+        targets.forEach(target -> searchSyncRecorder.refreshDailyNote(
+                target.getDailyNoteId(), target.getContentRevision()));
     }
 }

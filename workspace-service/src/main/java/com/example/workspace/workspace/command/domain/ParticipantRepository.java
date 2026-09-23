@@ -19,4 +19,6 @@ WHERE i.code = :code
     InvitedWorkSpaceSummaryResponse findWorkspaceSummaryByCode(String code);
 
     List<Participant> findByMemberId(Long memberId);
+
+    void deleteAllByWorkSpaceId(Long workSpaceId);
 }

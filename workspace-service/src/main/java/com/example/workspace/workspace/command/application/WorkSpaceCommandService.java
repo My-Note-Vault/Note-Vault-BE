@@ -1,6 +1,7 @@
 package com.example.workspace.workspace.command.application;
 
 import com.example.common.file.image.ImageUtils;
+import com.example.search.sync.SearchSyncRecorder;
 import com.example.workspace.common.WorkspaceConst;
 import com.example.workspace.document.command.domain.Document;
 import com.example.workspace.document.command.domain.DocumentRepository;
@@ -26,6 +27,7 @@ public class WorkSpaceCommandService {
     private final InvitationRepository invitationRepository;
     private final DocumentRepository documentRepository;
     private final ImageUtils imageUtils;
+    private final SearchSyncRecorder searchSyncRecorder;
 
     @Transactional
     public Long createWorkSpace(
@@ -39,7 +41,8 @@ public class WorkSpaceCommandService {
 
         Participant participant = new Participant(workSpace.getId(), memberId);
         participantRepository.save(participant);
-        documentRepository.save(Document.workspaceHome(workSpace.getId(), memberId, content));
+        Document home = documentRepository.save(Document.workspaceHome(workSpace.getId(), memberId, content));
+        searchSyncRecorder.refreshDocument(home.getId(), home.getSearchRevision());
 
         return workSpace.getId();
     }
@@ -107,12 +110,18 @@ public class WorkSpaceCommandService {
 
     @Transactional
     public void deleteWorkSpace(final Long memberId, final Long workSpaceId) {
-        WorkSpace workSpace = workSpaceRepository.findById(workSpaceId)
+        WorkSpace workSpace = workSpaceRepository.findWithWriteLockById(workSpaceId)
                 .orElseThrow(() -> new NoSuchElementException("WorkSpace 를 찾을 수 없습니다"));
 
         if (!workSpace.getCreatorId().equals(memberId)) {
             throw new IllegalArgumentException("삭제할 권한이 없습니다.");
         }
+        List<Document> documents = documentRepository.findAllByWorkSpaceIdOrderByIdAsc(workSpaceId);
+        documents.forEach(document -> searchSyncRecorder.deleteDocument(document.getId()));
+        // workspace_id is a scalar field; deleting a workspace does not cascade to documents in JPA.
+        documentRepository.deleteAll(documents);
+        participantRepository.deleteAllByWorkSpaceId(workSpaceId);
+        invitationRepository.deleteAllByWorkSpaceId(workSpaceId);
         imageUtils.deleteAllContentImages(workSpace.getContent());
         workSpaceRepository.delete(workSpace);
     }

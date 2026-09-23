@@ -23,6 +23,7 @@ dependencies {
 	implementation project(":common")
 	implementation project(":platform-api")
 	implementation project(":workspace-api")
+	implementation project(":search-sync")
 
 	implementation 'org.springframework.boot:spring-boot-starter-websocket'
 	implementation 'io.micrometer:micrometer-core'
