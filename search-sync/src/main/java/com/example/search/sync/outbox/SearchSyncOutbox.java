@@ -10,15 +10,21 @@ import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.type.SqlTypes;
 import org.springframework.data.domain.Persistable;
 
+import java.time.Duration;
 import java.time.Instant;
 import java.util.Objects;
 import java.util.UUID;
+import java.util.concurrent.ThreadLocalRandom;
 
 @Entity
 @Table(name = "search_sync_outbox")
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class SearchSyncOutbox implements Persistable<UUID> {
+    private static final Duration LEASE_DURATION = Duration.ofMinutes(1);
+    private static final long INITIAL_RETRY_MILLIS = 1000;
+    private static final long MAX_RETRY_MILLIS = Duration.ofMinutes(5).toMillis();
+
     @Id
     @Column(name = "event_id", nullable = false, updatable = false)
     private UUID eventId;
@@ -76,6 +82,66 @@ public class SearchSyncOutbox implements Persistable<UUID> {
         row.createdAt = event.occurredAt();
         row.nextAttemptAt = event.occurredAt();
         return row;
+    }
+
+    public OutboxMessage claim(Instant now) {
+        if (status != SearchSyncOutboxStatus.PENDING) {
+            throw new IllegalStateException("Only pending events can be claimed");
+        }
+        status = SearchSyncOutboxStatus.PROCESSING;
+        leaseToken = UUID.randomUUID();
+        leaseExpiresAt = now.plus(LEASE_DURATION);
+        attemptCount++;
+        return new OutboxMessage(eventId, payload, leaseToken);
+    }
+
+    public boolean markPublished(UUID token, Instant now) {
+        if (!ownsLease(token, now)) return false;
+        status = SearchSyncOutboxStatus.PUBLISHED;
+        publishedAt = now;
+        lastError = null;
+        clearLease();
+        return true;
+    }
+
+    public boolean markFailed(UUID token, Instant now, String error) {
+        if (!ownsLease(token, now)) return false;
+        retryLater(now, error);
+        return true;
+    }
+
+    public void recoverExpiredLease(Instant now) {
+        if (status != SearchSyncOutboxStatus.PROCESSING || leaseExpiresAt.isAfter(now)) {
+            throw new IllegalStateException("Only expired processing events can be recovered");
+        }
+        retryLater(now, "Relay lease expired before publication was recorded");
+    }
+
+    private boolean ownsLease(UUID token, Instant now) {
+        return status == SearchSyncOutboxStatus.PROCESSING
+                && Objects.equals(leaseToken, token) && leaseExpiresAt.isAfter(now);
+    }
+
+    private void retryLater(Instant now, String error) {
+        status = SearchSyncOutboxStatus.PENDING;
+        nextAttemptAt = now.plusMillis(retryDelayMillis());
+        String reason = Objects.requireNonNullElse(error, "SQS publication failed");
+        lastError = reason.substring(0, Math.min(reason.length(), 2048));
+        clearLease();
+    }
+
+    private long retryDelayMillis() {
+        // Exponential backoff with jitter: starts at 1s, capped at 5 minutes.
+        long ceiling = INITIAL_RETRY_MILLIS;
+        for (int attempt = 1; attempt < attemptCount && ceiling < MAX_RETRY_MILLIS; attempt++) {
+            ceiling = Math.min(MAX_RETRY_MILLIS, ceiling * 2);
+        }
+        return ThreadLocalRandom.current().nextLong(Math.max(INITIAL_RETRY_MILLIS, ceiling / 2), ceiling + 1);
+    }
+
+    private void clearLease() {
+        leaseToken = null;
+        leaseExpiresAt = null;
     }
 
     @Override
