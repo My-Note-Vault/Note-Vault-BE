@@ -5,9 +5,12 @@ import java.util.function.Consumer;
 
 public interface KeywordSearchReader {
 
-    /** Streams every accessible title/current-chunk match without a candidate cutoff. */
+    /** Streams accessible title/body matches, including original text without current chunks. */
     void scanHybridMatches(Long memberId, String question, List<String> keywords,
                            Consumer<FieldKeywordHit> consumer);
+
+    /** Loads a batch of original texts, checking access, body version and title in the same query. */
+    List<SearchSourceContent> findAccessibleSources(Long memberId, List<SearchSourceRef> sources);
 
     /**
      * Searches only sources accessible to memberId. Keeps at most limitPerKeyword hits per keyword,

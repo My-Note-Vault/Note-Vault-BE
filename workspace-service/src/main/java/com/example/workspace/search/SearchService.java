@@ -4,6 +4,8 @@ import com.notevault.workspace.api.search.KeywordSearchHit;
 import com.notevault.workspace.api.search.FieldKeywordHit;
 import com.notevault.workspace.api.search.KeywordSearchReader;
 import com.notevault.workspace.api.search.KeywordSourceType;
+import com.notevault.workspace.api.search.SearchSourceContent;
+import com.notevault.workspace.api.search.SearchSourceRef;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -23,6 +25,14 @@ public class SearchService implements KeywordSearchReader {
     private static final int SNIPPET_CONTEXT_LENGTH = 5;
 
     private final SearchRepository searchRepository;
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<SearchSourceContent> findAccessibleSources(Long memberId, List<SearchSourceRef> sources) {
+        Objects.requireNonNull(memberId, "memberId");
+        Objects.requireNonNull(sources, "sources");
+        return sources.isEmpty() ? List.of() : searchRepository.findAccessibleSources(memberId, sources);
+    }
 
     @Override
     @Transactional(readOnly = true)

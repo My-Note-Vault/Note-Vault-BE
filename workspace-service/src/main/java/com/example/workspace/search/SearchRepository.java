@@ -2,6 +2,8 @@ package com.example.workspace.search;
 
 import com.notevault.workspace.api.search.FieldKeywordHit;
 import com.notevault.workspace.api.search.KeywordSourceType;
+import com.notevault.workspace.api.search.SearchSourceContent;
+import com.notevault.workspace.api.search.SearchSourceRef;
 import lombok.RequiredArgsConstructor;
 import org.springframework.jdbc.core.PreparedStatementCallback;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
@@ -22,6 +24,33 @@ public class SearchRepository {
 
     private static final String LIKE_ESCAPE = "\\";
 
+    private static final String ACCESSIBLE_SOURCES = """
+            WITH source_text AS (
+                SELECT 'DOCUMENT' AS source_type, d.id AS source_id,
+                       COALESCE(d.title, '') AS title, CAST(d.search_revision AS VARCHAR) AS revision,
+                       CASE WHEN d.type = 'WORKSPACE_HOME' THEN d.workspace_id ELSE d.id END AS resource_id,
+                       CASE WHEN d.type = 'WORKSPACE_HOME' THEN 'space' ELSE LOWER(d.type) END AS resource_type,
+                       COALESCE(d.search_content, '') AS content
+                FROM document d
+                WHERE EXISTS (SELECT 1 FROM workspace_member wm
+                              WHERE wm.workspace_id = d.workspace_id AND wm.member_id = :memberId)
+                UNION ALL
+                SELECT 'DAILY_NOTE', n.id, CAST(n.logical_date AS VARCHAR), CAST(NULL AS VARCHAR),
+                       n.id, 'daily', COALESCE(n.content, '') || COALESCE((
+                           SELECT string_agg(E'\\n\\n' || p.content, '' ORDER BY p.id)
+                           FROM daily_note_plan dnp JOIN plan p ON p.id = dnp.plan_id
+                           WHERE dnp.daily_note_id = n.id AND p.content IS NOT NULL AND p.content <> ''
+                       ), '')
+                FROM daily_note n WHERE n.author_id = :memberId
+            ), accessible AS (
+                SELECT source_type, source_id, title, resource_id, resource_type, content,
+                       CASE WHEN source_type = 'DAILY_NOTE'
+                            THEN encode(sha256(convert_to(content, 'UTF8')), 'hex')
+                            ELSE revision END AS version
+                FROM source_text
+            )
+            """;
+
     private final NamedParameterJdbcTemplate jdbcTemplate;
 
     public void scanHybridMatches(Long memberId, String question, List<String> keywords,
@@ -35,40 +64,35 @@ public class SearchRepository {
             counts.add("CASE WHEN text ILIKE :" + name + " ESCAPE :escape THEN 1 ELSE 0 END");
         }
         String count = counts.isEmpty() ? "0" : String.join(" + ", counts);
-        String sql = """
-                WITH accessible AS (
-                    SELECT 'DOCUMENT' AS source_type, d.id AS source_id,
-                           COALESCE(d.title, '') AS title,
-                           CAST(d.search_revision AS VARCHAR) AS version
-                    FROM document d
-                    WHERE EXISTS (SELECT 1 FROM workspace_member wm
-                                  WHERE wm.workspace_id = d.workspace_id AND wm.member_id = :memberId)
-                    UNION ALL
-                    SELECT 'DAILY_NOTE', n.id, CAST(n.logical_date AS VARCHAR),
-                           encode(sha256(convert_to(
-                               COALESCE(n.content, '') || COALESCE((
-                                   SELECT string_agg(E'\\n\\n' || p.content, '' ORDER BY p.id)
-                                   FROM daily_note_plan dnp JOIN plan p ON p.id=dnp.plan_id
-                                   WHERE dnp.daily_note_id=n.id AND p.content IS NOT NULL AND p.content <> ''
-                               ), ''), 'UTF8')), 'hex')
-                    FROM daily_note n WHERE n.author_id = :memberId
-                ), fields AS (
-                    SELECT source_type, source_id, CAST(NULL AS BIGINT) AS chunk_id, title AS text
+        String sql = ACCESSIBLE_SOURCES + """
+                , fields AS (
+                    SELECT source_type, source_id, version, title, 'TITLE' AS matched_field,
+                           CAST(NULL AS BIGINT) AS chunk_id, title AS text
                     FROM accessible
                     UNION ALL
-                    SELECT c.source_type, c.source_id, c.id, c.content
+                    SELECT c.source_type, c.source_id, a.version, a.title, 'BODY', c.id, c.content
                     FROM content_chunk c JOIN accessible a
                       ON a.source_type = c.source_type AND a.source_id = c.source_id
                      AND a.version = c.source_version
+                    UNION ALL
+                    SELECT a.source_type, a.source_id, a.version, a.title, 'BODY',
+                           CAST(NULL AS BIGINT), a.content
+                    FROM accessible a
+                    WHERE NOT EXISTS (
+                        SELECT 1 FROM content_chunk c
+                        WHERE c.source_type = a.source_type AND c.source_id = a.source_id
+                          AND c.source_version = a.version
+                    )
                 ), scored AS (
-                    SELECT source_type, source_id, chunk_id,
+                    SELECT source_type, source_id, version, title, matched_field, chunk_id,
                            (CASE WHEN LOWER(text) = LOWER(:question) THEN 3.0
                                  WHEN text ILIKE :keyword ESCAPE :escape THEN 2.0
                                  ELSE 0.0 END)
                            + (%s) * 1.0 / :denominator AS score
                     FROM fields
                 )
-                SELECT source_type, source_id, chunk_id, score FROM scored WHERE score > 0
+                SELECT source_type, source_id, version, title, matched_field, chunk_id, score
+                FROM scored WHERE score > 0
                 """.formatted(count);
         parameters.put("denominator", Math.max(1, keywords.size()));
         jdbcTemplate.execute(sql, parameters, (PreparedStatementCallback<Void>) statement -> {
@@ -76,13 +100,37 @@ public class SearchRepository {
             try (var rows = statement.executeQuery()) {
                 while (rows.next()) {
                     consumer.accept(new FieldKeywordHit(
-                            KeywordSourceType.valueOf(rows.getString("source_type")),
-                            rows.getLong("source_id"), rows.getObject("chunk_id", Long.class),
+                            new SearchSourceRef(KeywordSourceType.valueOf(rows.getString("source_type")),
+                                    rows.getLong("source_id"), rows.getString("version"), rows.getString("title")),
+                            FieldKeywordHit.MatchedField.valueOf(rows.getString("matched_field")),
+                            rows.getObject("chunk_id", Long.class),
                             rows.getDouble("score")));
                 }
             }
             return null;
         });
+    }
+
+    public List<SearchSourceContent> findAccessibleSources(Long memberId, List<SearchSourceRef> sources) {
+        if (sources.isEmpty()) return List.of();
+        Map<String, Object> parameters = new HashMap<>();
+        parameters.put("memberId", memberId);
+        List<String> predicates = new ArrayList<>();
+        for (int index = 0; index < sources.size(); index++) {
+            SearchSourceRef source = sources.get(index);
+            parameters.put("type" + index, source.sourceType().name());
+            parameters.put("id" + index, source.sourceId());
+            parameters.put("version" + index, source.version());
+            parameters.put("title" + index, source.title());
+            predicates.add("(source_type = :type%d AND source_id = :id%d AND version = :version%d AND title = :title%d)"
+                    .formatted(index, index, index, index));
+        }
+        return jdbcTemplate.query(ACCESSIBLE_SOURCES + "SELECT * FROM accessible WHERE "
+                        + String.join(" OR ", predicates), parameters,
+                (rows, row) -> new SearchSourceContent(
+                        new SearchSourceRef(KeywordSourceType.valueOf(rows.getString("source_type")),
+                                rows.getLong("source_id"), rows.getString("version"), rows.getString("title")),
+                        rows.getLong("resource_id"), rows.getString("resource_type"), rows.getString("content")));
     }
 
     public List<SearchDocumentRow> searchWorkspaceNotes(final Long memberId, final String targetWord) {

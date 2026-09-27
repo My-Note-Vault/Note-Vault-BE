@@ -2,7 +2,10 @@ package com.example.search.retrieval;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.notevault.workspace.api.search.FieldKeywordHit;
 import com.notevault.workspace.api.search.KeywordSearchReader;
+import com.notevault.workspace.api.search.SearchSourceContent;
+import com.notevault.workspace.api.search.SearchSourceRef;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
@@ -10,6 +13,7 @@ import org.springframework.stereotype.Service;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -19,6 +23,7 @@ public class HybridSearch {
     private final IndexedChunkReader reader;
     private final KeywordSearchReader keywords;
     private final ObjectMapper mapper;
+    private final SourceExcerptSelector excerpts;
 
     @Value("${openai.chat.min-similarity:0.3}")
     private double minSimilarity;
@@ -39,7 +44,7 @@ public class HybridSearch {
     @Value("${openai.chat.chunks-per-document:2}")
     private int chunksPerDocument;
 
-    public List<Result> search(Long memberId, String question, List<String> terms,
+    public List<SearchEvidence> search(Long memberId, String question, List<String> terms,
                                String model, String questionEmbedding, int topK) {
         if (topK < 1 || documentTopK < 1 || chunksPerDocument < 1) {
             throw new IllegalArgumentException("Search result counts must be positive");
@@ -49,42 +54,46 @@ public class HybridSearch {
             throw new IllegalArgumentException("Invalid similarity threshold");
         }
         double[] query = parse(questionEmbedding);
-        Map<SourceKey, Double> titleKeyword = new HashMap<>();
-        Map<Long, Double> chunkKeyword = new HashMap<>();
+        Map<SearchSourceRef, Double> titleKeyword = new HashMap<>();
+        Map<SearchSourceRef, Double> originalKeyword = new HashMap<>();
+        Map<Long, FieldKeywordHit> chunkKeyword = new HashMap<>();
         keywords.scanHybridMatches(memberId, question, terms, hit -> {
-            if (hit.chunkId() == null) {
-                titleKeyword.put(new SourceKey(hit.sourceType().name(), hit.sourceId()), hit.score());
+            if (hit.matchedField() == FieldKeywordHit.MatchedField.TITLE) {
+                titleKeyword.put(hit.source(), hit.score());
+            } else if (hit.chunkId() == null) {
+                originalKeyword.put(hit.source(), hit.score());
             } else {
-                chunkKeyword.put(hit.chunkId(), hit.score());
+                chunkKeyword.put(hit.chunkId(), hit);
             }
         });
 
-        Map<SourceKey, Double> titleSemantic = new HashMap<>();
+        Map<SearchSourceRef, Double> titleSemantic = new HashMap<>();
         reader.scanAccessibleTitles(memberId, model, title -> {
             double similarity = cosine(query, parse(title.embedding()));
             if (similarity >= titleMinSimilarity) {
-                titleSemantic.put(new SourceKey(title.sourceType(), title.sourceId()), similarity);
+                titleSemantic.put(title.source(), similarity);
             }
         });
 
-        Map<SourceKey, Double> bodySemantic = new HashMap<>();
-        Map<SourceKey, Double> bodyKeyword = new HashMap<>();
-        Map<SourceKey, List<Candidate>> bestChunks = new HashMap<>();
+        Map<SearchSourceRef, Double> bodySemantic = new HashMap<>();
+        Map<SearchSourceRef, Double> bodyKeyword = new HashMap<>(originalKeyword);
+        Map<SearchSourceRef, List<Candidate>> bestChunks = new HashMap<>();
         Comparator<Candidate> chunkOrder = Comparator.comparingDouble(Candidate::score).reversed()
-                .thenComparing(Comparator.comparingDouble(Candidate::semantic).reversed())
+                .thenComparing(Candidate::semantic, Comparator.nullsLast(Comparator.reverseOrder()))
                 .thenComparingLong(Candidate::id);
 
         // Every current chunk is visited. Retain IDs/scores only, not the full corpus or vectors.
         reader.scanAccessibleChunks(memberId, model, chunk -> {
-            SourceKey source = new SourceKey(chunk.sourceType(), chunk.sourceId());
-            Double matched = chunkKeyword.remove(chunk.id());
-            double keyword = matched == null ? 0 : matched;
-            double semantic = chunk.embedding() == null ? -1 : cosine(query, parse(chunk.embedding()));
-            if (chunk.embedding() != null && semantic >= minSimilarity) {
+            SearchSourceRef source = chunk.source();
+            FieldKeywordHit matched = chunkKeyword.remove(chunk.id());
+            double keyword = matched != null && matched.source().equals(source) ? matched.score() : 0;
+            Double semantic = chunk.embedding() == null ? null : cosine(query, parse(chunk.embedding()));
+            if (semantic != null && semantic >= minSimilarity) {
                 bodySemantic.merge(source, semantic, Math::max);
             }
             if (keyword > 0) bodyKeyword.merge(source, keyword, Math::max);
-            double normalized = Math.max(0, Math.min(1, (semantic - minSimilarity) / (1 - minSimilarity)));
+            double normalized = semantic == null ? 0
+                    : Math.max(0, Math.min(1, (semantic - minSimilarity) / (1 - minSimilarity)));
             double score = 0.7 * normalized + 0.3 * Math.min(1, keyword / 4.0);
             List<Candidate> best = bestChunks.computeIfAbsent(source, ignored -> new ArrayList<>());
             best.add(new Candidate(chunk.id(), semantic, score));
@@ -92,33 +101,75 @@ public class HybridSearch {
             if (best.size() > chunksPerDocument) best.removeLast();
         });
 
-        // Title-only/empty documents cannot provide body context and must not displace usable documents.
-        titleSemantic.keySet().retainAll(bestChunks.keySet());
-        titleKeyword.keySet().retainAll(bestChunks.keySet());
-        Map<SourceKey, Double> fused = WeightedRrf.fuse(List.of(
+        Map<SearchSourceRef, Double> fused = WeightedRrf.fuse(List.of(
                 new WeightedRrf.Ranking<>(titleSemantic, titleSemanticWeight),
                 new WeightedRrf.Ranking<>(titleKeyword, titleKeywordWeight),
                 new WeightedRrf.Ranking<>(bodySemantic, bodySemanticWeight),
                 new WeightedRrf.Ranking<>(bodyKeyword, bodyKeywordWeight)), rankConstant);
-        List<SourceKey> documents = fused.entrySet().stream()
-                .sorted(Map.Entry.<SourceKey, Double>comparingByValue().reversed()
-                        .thenComparing(entry -> entry.getKey().type())
-                        .thenComparing(entry -> entry.getKey().id()))
-                .limit(documentTopK).map(Map.Entry::getKey).toList();
+        List<SearchSourceRef> ranked = fused.entrySet().stream()
+                .sorted(Map.Entry.<SearchSourceRef, Double>comparingByValue().reversed()
+                        .thenComparing(entry -> entry.getKey().sourceType().name())
+                        .thenComparing(entry -> entry.getKey().sourceId())
+                        .thenComparing(entry -> entry.getKey().version())
+                        .thenComparing(entry -> entry.getKey().title()))
+                .map(Map.Entry::getKey).toList();
+        Map<SearchSourceRef, List<SearchEvidence>> documents = new LinkedHashMap<>();
+        int target = Math.min(documentTopK, topK);
+        int cursor = 0;
+        while (documents.size() < target && cursor < ranked.size()) {
+            int end = Math.min(ranked.size(), cursor + target - documents.size());
+            List<SearchSourceRef> batch = ranked.subList(cursor, end);
+            Map<SearchSourceRef, List<SearchEvidence>> loaded = loadEvidence(
+                    memberId, question, terms, model, batch, bestChunks, originalKeyword);
+            for (SearchSourceRef source : batch) {
+                List<SearchEvidence> evidence = loaded.getOrDefault(source, List.of());
+                if (!evidence.isEmpty() && documents.keySet().stream().noneMatch(source::sameSource)) {
+                    documents.put(source, evidence);
+                }
+            }
+            cursor = end;
+        }
 
-        List<Candidate> selected = new ArrayList<>();
+        List<SearchEvidence> selected = new ArrayList<>();
         for (int position = 0; position < chunksPerDocument && selected.size() < topK; position++) {
-            for (SourceKey document : documents) {
-                List<Candidate> best = bestChunks.get(document);
+            for (List<SearchEvidence> best : documents.values()) {
                 if (position < best.size()) selected.add(best.get(position));
                 if (selected.size() == topK) break;
             }
         }
-        Map<Long, IndexedChunk> loaded = new HashMap<>();
-        reader.findAccessibleByIds(memberId, model, selected.stream().map(Candidate::id).toList())
-                .forEach(chunk -> loaded.put(chunk.id(), chunk));
-        return selected.stream().filter(candidate -> loaded.containsKey(candidate.id()))
-                .map(candidate -> new Result(loaded.get(candidate.id()), candidate.semantic())).toList();
+        return List.copyOf(selected);
+    }
+
+    private Map<SearchSourceRef, List<SearchEvidence>> loadEvidence(
+            Long memberId, String question, List<String> terms, String model, List<SearchSourceRef> sources,
+            Map<SearchSourceRef, List<Candidate>> bestChunks, Map<SearchSourceRef, Double> originalKeyword) {
+        // A body matched before chunks existed: keep that original-text match even if the Worker
+        // creates chunks between scans. Assigning its score to arbitrary new chunks would lose context.
+        List<Long> chunkIds = sources.stream().filter(source -> !originalKeyword.containsKey(source))
+                .flatMap(source -> bestChunks.getOrDefault(source, List.of()).stream())
+                .map(Candidate::id).toList();
+        Map<Long, IndexedChunk> chunks = new HashMap<>();
+        reader.findAccessibleByIds(memberId, model, chunkIds).forEach(chunk -> chunks.put(chunk.id(), chunk));
+        Map<SearchSourceRef, List<SearchEvidence>> result = new HashMap<>();
+        List<SearchSourceRef> originals = new ArrayList<>();
+        for (SearchSourceRef source : sources) {
+            List<SearchEvidence> evidence = new ArrayList<>();
+            for (Candidate candidate : bestChunks.getOrDefault(source, List.of())) {
+                IndexedChunk chunk = chunks.get(candidate.id());
+                if (chunk != null && chunk.source().equals(source) && !chunk.content().isBlank()) {
+                    evidence.add(SearchEvidence.fromChunk(chunk,
+                            chunk.embedding() == null ? null : candidate.semantic()));
+                }
+            }
+            if (evidence.isEmpty()) originals.add(source);
+            else result.put(source, evidence);
+        }
+        for (SearchSourceContent source : keywords.findAccessibleSources(memberId, originals)) {
+            List<SearchEvidence> evidence = excerpts.select(source.content(), question, terms, chunksPerDocument)
+                    .stream().map(excerpt -> SearchEvidence.fromSource(source, excerpt)).toList();
+            if (!evidence.isEmpty()) result.put(source.source(), evidence);
+        }
+        return result;
     }
 
     private double[] parse(String json) {
@@ -152,7 +203,5 @@ public class HybridSearch {
         return Math.max(-1, Math.min(1, dot / (Math.sqrt(leftLength) * Math.sqrt(rightLength))));
     }
 
-    private record SourceKey(String type, Long id) { }
-    private record Candidate(Long id, double semantic, double score) { }
-    public record Result(IndexedChunk chunk, double semantic) { }
+    private record Candidate(Long id, Double semantic, double score) { }
 }

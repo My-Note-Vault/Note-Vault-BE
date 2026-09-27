@@ -1,6 +1,6 @@
 package com.example.search.chat;
 
-import com.example.search.retrieval.IndexedChunk;
+import com.example.search.retrieval.SearchEvidence;
 import com.example.search.retrieval.HybridSearch;
 import com.example.search.infrastructure.OpenAiSearchClient;
 import lombok.RequiredArgsConstructor;
@@ -35,7 +35,7 @@ public class SemanticChatService {
         }
 
         String normalizedQuestion = question.trim();
-        List<HybridSearch.Result> found = search.search(memberId, normalizedQuestion,
+        List<SearchEvidence> found = search.search(memberId, normalizedQuestion,
                 keywordExtractor.extract(normalizedQuestion), openAi.embeddingModel(),
                 openAi.embedQuestion(normalizedQuestion), topK);
         if (found.isEmpty()) {
@@ -45,15 +45,14 @@ public class SemanticChatService {
         StringBuilder context = new StringBuilder();
         List<Source> sources = new ArrayList<>();
         for (int index = 0; index < found.size(); index++) {
-            HybridSearch.Result result = found.get(index);
-            IndexedChunk chunk = result.chunk();
+            SearchEvidence evidence = found.get(index);
             int number = index + 1;
             context.append('[').append(number).append("]\n문서: ")
-                    .append(chunk.sourceTitle()).append("\n내용:\n")
-                    .append(chunk.content()).append("\n\n");
-            sources.add(new Source(number, chunk.id(), chunk.sourceType(),
-                    chunk.resourceId(), chunk.resourceType(), chunk.sourceTitle(),
-                    result.semantic(), excerpt(chunk.content())));
+                    .append(evidence.source().title()).append("\n내용:\n")
+                    .append(evidence.content()).append("\n\n");
+            sources.add(new Source(number, evidence.chunkId(), evidence.source().sourceType().name(),
+                    evidence.resourceId(), evidence.resourceType(), evidence.source().title(),
+                    evidence.similarity(), excerpt(evidence.content())));
         }
         return new ChatPreparation(normalizedQuestion, context.toString(), sources);
     }
@@ -67,7 +66,7 @@ public class SemanticChatService {
     }
 
     public record Source(int number, Long chunkId, String sourceType, Long resourceId,
-                         String resourceType, String title, double similarity, String excerpt) {
+                         String resourceType, String title, Double similarity, String excerpt) {
     }
 
     public record ChatResult(String status, String answer, List<Source> sources) {

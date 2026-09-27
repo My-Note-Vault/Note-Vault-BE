@@ -1,5 +1,7 @@
 package com.example.search.retrieval;
 
+import com.notevault.workspace.api.search.KeywordSourceType;
+import com.notevault.workspace.api.search.SearchSourceRef;
 import lombok.RequiredArgsConstructor;
 import org.springframework.jdbc.core.PreparedStatementCallback;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
@@ -41,7 +43,7 @@ public class IndexedChunkReader {
 
     private static final String CHUNKS = ACCESSIBLE_SOURCES + """
             SELECT c.id, c.source_type, c.source_id, a.resource_id, a.resource_type,
-                   a.title AS source_title, c.content,
+                   a.title AS source_title, a.version AS source_version, c.content,
                    CASE WHEN c.embedding_status = 'READY' AND c.embedding_model = :model
                         THEN c.embedding ELSE NULL END AS embedding
             FROM content_chunk c JOIN accessible a
@@ -65,7 +67,8 @@ public class IndexedChunkReader {
     @Transactional(readOnly = true)
     public void scanAccessibleTitles(Long memberId, String model, Consumer<IndexedTitle> consumer) {
         jdbc.execute(ACCESSIBLE_SOURCES + """
-                SELECT t.source_type, t.source_id, t.embedding
+                SELECT t.source_type, t.source_id, a.version AS source_version,
+                       a.title AS source_title, t.embedding
                 FROM content_title_embedding t JOIN accessible a
                   ON a.source_type = t.source_type AND a.source_id = t.source_id
                  AND a.title = t.source_title
@@ -75,7 +78,7 @@ public class IndexedChunkReader {
                     statement.setFetchSize(256);
                     try (ResultSet rows = statement.executeQuery()) {
                         while (rows.next()) consumer.accept(new IndexedTitle(
-                                rows.getString("source_type"), rows.getLong("source_id"),
+                                readSource(rows),
                                 rows.getString("embedding")));
                     }
                     return null;
@@ -90,11 +93,16 @@ public class IndexedChunkReader {
     }
 
     private IndexedChunk readChunk(ResultSet rs) throws SQLException {
-        return new IndexedChunk(rs.getLong("id"), rs.getString("source_type"), rs.getLong("source_id"),
-                rs.getLong("resource_id"), rs.getString("resource_type"), rs.getString("source_title"),
+        return new IndexedChunk(rs.getLong("id"), readSource(rs),
+                rs.getLong("resource_id"), rs.getString("resource_type"),
                 rs.getString("content"), rs.getString("embedding"));
     }
 
-    public record IndexedTitle(String sourceType, Long sourceId, String embedding) {
+    private SearchSourceRef readSource(ResultSet rs) throws SQLException {
+        return new SearchSourceRef(KeywordSourceType.valueOf(rs.getString("source_type")),
+                rs.getLong("source_id"), rs.getString("source_version"), rs.getString("source_title"));
+    }
+
+    public record IndexedTitle(SearchSourceRef source, String embedding) {
     }
 }
