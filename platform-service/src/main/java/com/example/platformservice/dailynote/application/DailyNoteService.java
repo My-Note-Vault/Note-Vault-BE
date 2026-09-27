@@ -138,7 +138,8 @@ public class DailyNoteService {
 
     @Transactional
     public void deleteDailyNote(final Long memberId, final Long dailyNoteId) {
-        DailyNote dailyNote = dailyNoteRepository.findById(dailyNoteId)
+        // The worker also locks the note before its links when verifying an indexing result.
+        DailyNote dailyNote = dailyNoteRepository.findWithWriteLockById(dailyNoteId)
                 .orElseThrow(() -> new NoSuchElementException(NO_DAILY_NOTE_MESSAGE));
 
         if (!dailyNote.getAuthorId().equals(memberId)) {

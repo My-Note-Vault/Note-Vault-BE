@@ -8,8 +8,6 @@ import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
-import java.util.Objects;
-import java.util.NoSuchElementException;
 
 @RequiredArgsConstructor
 @Service
@@ -19,35 +17,8 @@ public class ContentIndexingService {
     private final EmbeddingClient openAi;
     private final ContentChunker chunker;
 
-    public void indexDocument(Long memberId, String type, Long resourceId, Long requestedRevision) {
-        ContentSourceSnapshot source = transactions.readDocument(memberId, type, resourceId);
-        if (requestedRevision == null || !Objects.equals(source.revision(), requestedRevision)) {
-            throw new StaleContentException();
-        }
-        index(source);
-    }
-
-    public void indexDailyNote(Long memberId, Long dailyNoteId) {
-        index(transactions.readDailyNote(memberId, dailyNoteId));
-    }
-
-    /** Worker entry point for a Plan content change; each linked note keeps its own index. */
-    public void indexDailyNotesForPlan(Long planId) {
-        RuntimeException failure = null;
-        for (ContentIndexingTransactions.DailyNoteReference note : transactions.findDailyNotesLinkedToPlan(planId)) {
-            try {
-                indexDailyNote(note.ownerId(), note.id());
-            } catch (NoSuchElementException deleted) {
-                // The note may have been deleted after its link was read.
-            } catch (RuntimeException exception) {
-                if (failure == null) failure = exception;
-                else failure.addSuppressed(exception);
-            }
-        }
-        if (failure != null) throw failure;
-    }
-
-    private void index(ContentSourceSnapshot source) {
+    public void index(ContentSourceSnapshot source) {
+        List<ChunkDraft> drafts = chunker.chunk(source.content());
         RuntimeException failure = null;
         try {
             indexTitle(source);
@@ -55,12 +26,13 @@ public class ContentIndexingService {
             failure = exception;
         }
         try {
-            indexBody(source);
+            indexBody(source, drafts);
         } catch (RuntimeException exception) {
             if (failure == null) failure = exception;
             else failure.addSuppressed(exception);
         }
         if (failure != null) throw failure;
+        transactions.verifyComplete(source, drafts, openAi.embeddingModel());
     }
 
     public void indexTitle(ContentSourceSnapshot source) {
@@ -84,9 +56,8 @@ public class ContentIndexingService {
         }
     }
 
-    private void indexBody(ContentSourceSnapshot source) {
+    private void indexBody(ContentSourceSnapshot source, List<ChunkDraft> drafts) {
         // Chunking and the external API call both run without a database transaction.
-        List<ChunkDraft> drafts = chunker.chunk(source.content());
         ContentIndexingTransactions.EmbeddingWork work =
                 transactions.prepare(source, drafts, openAi.embeddingModel());
         if (work.targets().isEmpty()) {

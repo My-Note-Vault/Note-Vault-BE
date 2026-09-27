@@ -1,164 +1,110 @@
 package com.example.search.indexing;
 
-import com.example.search.content.ContentChunk;
-import com.example.search.content.ContentChunkRepository;
-import com.example.search.content.ContentSourceSnapshot;
-import com.example.search.content.ContentSourceType;
-import com.example.search.content.EmbeddingStatus;
+import com.example.search.content.*;
 import lombok.RequiredArgsConstructor;
-import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
-import java.util.Locale;
 import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.Objects;
+import java.util.Optional;
 
 @RequiredArgsConstructor
 @Service
+@Transactional(propagation = Propagation.REQUIRES_NEW, timeout = 5)
 public class ContentIndexingTransactions {
-    private final JdbcTemplate jdbc;
+    private final DocumentSourceRepository documents;
+    private final DailyNoteSourceRepository notes;
     private final ContentChunkRepository chunks;
+    private final ContentTitleEmbeddingRepository titles;
 
-    @Transactional(readOnly = true)
-    public ContentSourceSnapshot readDocument(Long memberId, String type, Long resourceId) {
-        if ("space".equalsIgnoreCase(type)) {
-            return readWorkspaceHome(memberId, resourceId);
-        }
-        String resourceType = type.toLowerCase(Locale.ROOT);
-        List<ContentSourceSnapshot> documents = jdbc.query("""
-                SELECT d.id, d.workspace_id, d.author_id, d.title, d.search_content,
-                       d.search_revision, d.search_content_hash, d.updated_at
-                FROM document d
-                JOIN workspace_member wm ON wm.workspace_id = d.workspace_id AND wm.member_id = ?
-                WHERE d.id = ? AND LOWER(d.type) = ?
-                """, (rs, row) -> snapshot(rs, ContentSourceType.DOCUMENT, resourceType, resourceId),
-                memberId, resourceId, resourceType);
-        return requireDocument(documents);
+    @Transactional(readOnly = true, propagation = Propagation.REQUIRES_NEW, timeout = 5)
+    public Optional<ContentSourceSnapshot> readSource(ContentSourceType type, Long sourceId) {
+        return switch (type) {
+            case DOCUMENT -> documents.findById(sourceId).map(DocumentSource::snapshot);
+            case DAILY_NOTE -> notes.findById(sourceId)
+                    .map(note -> note.snapshot(notes.findPlanContents(sourceId)));
+        };
     }
 
-    @Transactional(readOnly = true)
-    public ContentSourceSnapshot readDailyNote(Long memberId, Long dailyNoteId) {
-        return findDailyNoteSnapshot(memberId, dailyNoteId);
+    @Transactional(readOnly = true, propagation = Propagation.REQUIRES_NEW, timeout = 5)
+    public List<Long> sourceIds(ContentSourceType type, long after) {
+        return type == ContentSourceType.DOCUMENT ? documents.findNextIds(after) : notes.findNextIds(after);
     }
 
-    private ContentSourceSnapshot findDailyNoteSnapshot(Long memberId, Long dailyNoteId) {
-        List<ContentSourceSnapshot> notes = jdbc.query("""
-                SELECT n.id, NULL AS workspace_id, n.author_id,
-                       CAST(n.logical_date AS VARCHAR) AS title,
-                       COALESCE(n.content, '') || COALESCE((
-                           SELECT string_agg(E'\\n\\n' || p.content, '' ORDER BY p.id)
-                           FROM daily_note_plan dnp JOIN plan p ON p.id = dnp.plan_id
-                           WHERE dnp.daily_note_id = n.id AND p.content IS NOT NULL AND p.content <> ''
-                       ), '') AS content,
-                       n.content_revision AS search_revision, NULL AS search_content_hash, n.updated_at
-                FROM daily_note n WHERE n.id = ? AND n.author_id = ?
-                """, (rs, row) -> snapshot(rs, ContentSourceType.DAILY_NOTE, "daily", dailyNoteId),
-                dailyNoteId, memberId);
-        if (notes.isEmpty()) {
-            throw new NoSuchElementException("DailyNote를 찾을 수 없습니다");
-        }
-        return notes.getFirst();
+    public void deleteIfMissing(ContentSourceType type, Long sourceId) {
+        if (lockSource(type, sourceId).isPresent()) throw new ContentIndexingService.StaleContentException();
+        // Source IDs are not reused. In-flight writers also require an existing source-row lock.
+        chunks.deleteSource(type, sourceId);
+        titles.deleteById(new ContentTitleEmbedding.Id(type, sourceId));
     }
 
-    @Transactional(readOnly = true)
-    public List<DailyNoteReference> findDailyNotesLinkedToPlan(Long planId) {
-        return jdbc.query("""
-                SELECT n.id, n.author_id FROM daily_note n
-                JOIN daily_note_plan dnp ON dnp.daily_note_id=n.id
-                WHERE dnp.plan_id=? ORDER BY n.id
-                """, (rs, row) -> new DailyNoteReference(rs.getLong("id"), rs.getLong("author_id")), planId);
-    }
-
-    /** Internal worker backfill; never exposed through the API module. */
-    @Transactional(readOnly = true)
-    public ContentSourceSnapshot readDocumentForIndexing(Long documentId) {
-        List<ContentSourceSnapshot> result = jdbc.query("""
-                SELECT d.id, d.workspace_id, d.author_id, d.title, d.search_content,
-                       d.search_revision, d.search_content_hash, d.updated_at,
-                       CASE WHEN d.type='WORKSPACE_HOME' THEN 'space' ELSE LOWER(d.type) END AS resource_type,
-                       CASE WHEN d.type='WORKSPACE_HOME' THEN d.workspace_id ELSE d.id END AS resource_id
-                FROM document d WHERE d.id=?
-                """, (rs, row) -> snapshot(rs, ContentSourceType.DOCUMENT,
-                rs.getString("resource_type"), rs.getLong("resource_id")), documentId);
-        return requireDocument(result);
-    }
-
-    @Transactional
     public TitleWork prepareTitle(ContentSourceSnapshot source, String model) {
         ContentSourceSnapshot current = lockAndReadSource(source);
-        if (!Objects.equals(source.title(), current.title())) {
-            throw new ContentIndexingService.StaleContentException();
-        }
-        if (current.title() == null || current.title().isBlank()) {
-            jdbc.update("DELETE FROM content_title_embedding WHERE source_type=? AND source_id=?",
-                    current.type().name(), current.sourceId());
+        requireCurrentTitle(source, current);
+        ContentTitleEmbedding.Id id = titleId(current);
+        if (current.title().isBlank()) {
+            titles.deleteById(id);
             return null;
         }
-        Integer ready = jdbc.queryForObject("""
-                SELECT COUNT(*) FROM content_title_embedding
-                WHERE source_type=? AND source_id=? AND source_title=?
-                  AND embedding_model=? AND embedding_status='READY'
-                """, Integer.class, current.type().name(), current.sourceId(), current.title(), model);
-        if (ready != null && ready > 0) return null;
-        Integer attempt = jdbc.queryForObject("""
-                INSERT INTO content_title_embedding
-                    (source_type, source_id, source_title, embedding_model, embedding_status, embedding_attempts)
-                VALUES (?, ?, ?, ?, 'PROCESSING', 1)
-                ON CONFLICT (source_type, source_id) DO UPDATE
-                SET source_title=EXCLUDED.source_title, embedding_model=EXCLUDED.embedding_model,
-                    embedding=NULL, embedding_status='PROCESSING', embedding_error=NULL,
-                    embedding_attempts=content_title_embedding.embedding_attempts+1,
-                    updated_at=CURRENT_TIMESTAMP
-                RETURNING embedding_attempts
-                """, Integer.class, current.type().name(), current.sourceId(), current.title(), model);
-        return new TitleWork(current, model, Objects.requireNonNull(attempt));
+        ContentTitleEmbedding title = titles.findById(id).orElseGet(() -> new ContentTitleEmbedding(id));
+        if (title.ready(current.title(), model)) return null;
+        int attempt = title.claim(current.title(), model);
+        titles.save(title);
+        return new TitleWork(current, model, attempt);
     }
 
-    @Transactional
     public void completeTitle(TitleWork work, String vector) {
         ContentSourceSnapshot current = lockAndReadSource(work.source());
-        if (!Objects.equals(work.source().title(), current.title())) {
+        requireCurrentTitle(work.source(), current);
+        ContentTitleEmbedding title = titles.findById(titleId(current))
+                .orElseThrow(ContentIndexingService.StaleContentException::new);
+        if (title.owns(current.title(), work.model(), work.attempt())) {
+            title.complete(vector);
+        } else if (!title.ready(current.title(), work.model())) {
             throw new ContentIndexingService.StaleContentException();
         }
-        int changed = jdbc.update("""
-                UPDATE content_title_embedding SET embedding=?, embedding_status='READY',
-                    embedding_error=NULL, updated_at=CURRENT_TIMESTAMP
-                WHERE source_type=? AND source_id=? AND source_title=? AND embedding_model=?
-                  AND embedding_attempts=? AND embedding_status='PROCESSING'
-                """, vector, current.type().name(), current.sourceId(), current.title(), work.model(), work.attempt());
-        if (changed == 0) {
-            Integer ready = jdbc.queryForObject("""
-                    SELECT COUNT(*) FROM content_title_embedding
-                    WHERE source_type=? AND source_id=? AND source_title=?
-                      AND embedding_model=? AND embedding_status='READY'
-                    """, Integer.class, current.type().name(), current.sourceId(), current.title(), work.model());
-            if (ready == null || ready == 0) throw new ContentIndexingService.StaleContentException();
-        }
     }
 
-    @Transactional
     public void failTitle(TitleWork work, String error) {
-        try {
-            lockAndReadSource(work.source());
-        } catch (NoSuchElementException deleted) {
-            return;
-        }
-        jdbc.update("""
-                UPDATE content_title_embedding SET embedding_status='FAILED', embedding_error=?,
-                    updated_at=CURRENT_TIMESTAMP
-                WHERE source_type=? AND source_id=? AND source_title=? AND embedding_model=?
-                  AND embedding_attempts=? AND embedding_status='PROCESSING'
-                """, error, work.source().type().name(), work.source().sourceId(), work.source().title(),
-                work.model(), work.attempt());
+        if (lockSource(work.source().type(), work.source().sourceId()).isEmpty()) return;
+        titles.findById(titleId(work.source())).ifPresent(title -> {
+            if (title.owns(work.source().title(), work.model(), work.attempt())) title.fail(error);
+        });
     }
 
-    @Transactional
+    /** Both title and body must still be complete before the consumer acknowledges the message. */
+    public void verifyComplete(ContentSourceSnapshot source, List<ChunkDraft> drafts, String model) {
+        ContentSourceSnapshot current = lockAndReadSource(source);
+        requireCurrent(source, current);
+        Optional<ContentTitleEmbedding> title = titles.findById(titleId(current));
+        boolean titleReady = current.title().isBlank()
+                ? title.isEmpty() : title.filter(value -> value.ready(current.title(), model)).isPresent();
+        List<ContentChunk> rows = chunks.findAllBySourceTypeAndSourceIdOrderByChunkIndexAsc(
+                source.type(), source.sourceId());
+        if (!titleReady || rows.size() != drafts.size()) throw new ContentIndexingService.StaleContentException();
+        for (int i = 0; i < drafts.size(); i++) {
+            ContentChunk row = rows.get(i);
+            ChunkDraft draft = drafts.get(i);
+            if (row.getChunkIndex() != i || !source.version().equals(row.getSourceVersion())
+                    || !draft.hash().equals(row.getContentHash()) || !draft.content().equals(row.getContent())
+                    || row.getEmbeddingStatus() != EmbeddingStatus.READY || row.getEmbedding() == null
+                    || !model.equals(row.getEmbeddingModel())
+                    || !Objects.equals(source.title(), row.getSourceTitle())
+                    || !Objects.equals(source.workspaceId(), row.getWorkspaceId())
+                    || !Objects.equals(source.ownerId(), row.getOwnerId())
+                    || !Objects.equals(source.resourceType(), row.getResourceType())
+                    || !Objects.equals(source.resourceId(), row.getResourceId())) {
+                throw new ContentIndexingService.StaleContentException();
+            }
+        }
+    }
+
     public EmbeddingWork prepare(ContentSourceSnapshot source, List<ChunkDraft> drafts, String model) {
         ContentSourceSnapshot current = lockAndReadSource(source);
         requireCurrent(source, current);
@@ -174,7 +120,6 @@ public class ContentIndexingTransactions {
         return new EmbeddingWork(current, model, List.copyOf(work));
     }
 
-    @Transactional
     public void complete(EmbeddingWork work, List<String> vectors) {
         ContentSourceSnapshot currentSource = lockAndReadSource(work.source());
         requireCurrent(work.source(), currentSource);
@@ -200,7 +145,6 @@ public class ContentIndexingTransactions {
         }
     }
 
-    @Transactional
     public void fail(EmbeddingWork work, String error) {
         try {
             lockAndReadSource(work.source());
@@ -280,98 +224,35 @@ public class ContentIndexingTransactions {
         chunks.saveAllAndFlush(add);
     }
 
-    private ContentSourceSnapshot lockAndReadSource(ContentSourceSnapshot source) {
-        return switch (source.type()) {
-            case DOCUMENT -> lockAndReadDocument(source);
-            case DAILY_NOTE -> lockAndReadDailyNote(source.ownerId(), source.sourceId());
+    private Optional<ContentSourceSnapshot> lockSource(ContentSourceType type, Long sourceId) {
+        return switch (type) {
+            case DOCUMENT -> documents.lockById(sourceId).map(DocumentSource::snapshot);
+            case DAILY_NOTE -> notes.lockById(sourceId)
+                    .map(note -> {
+                        notes.lockPlans(sourceId);
+                        return note.snapshot(notes.lockPlanContents(sourceId));
+                    });
         };
     }
 
+    private ContentSourceSnapshot lockAndReadSource(ContentSourceSnapshot source) {
+        return lockSource(source.type(), source.sourceId())
+                .orElseThrow(() -> new NoSuchElementException("Search source was deleted"));
+    }
+
     private void requireCurrent(ContentSourceSnapshot source, ContentSourceSnapshot current) {
-        if (!Objects.equals(source.contentHash(), current.contentHash())
-                || (source.type() == ContentSourceType.DOCUMENT
-                    && (!Objects.equals(source.revision(), current.revision())
-                        || !Objects.equals(source.sourceUpdatedAt(), current.sourceUpdatedAt())))) {
-            throw new ContentIndexingService.StaleContentException();
-        }
+        if (!source.sameSearchInput(current)) throw new ContentIndexingService.StaleContentException();
     }
 
-    private ContentSourceSnapshot readWorkspaceHome(Long memberId, Long workspaceId) {
-        List<ContentSourceSnapshot> documents = jdbc.query("""
-                SELECT d.id, d.workspace_id, d.author_id, d.title, d.search_content,
-                       d.search_revision, d.search_content_hash, d.updated_at
-                FROM document d
-                JOIN workspace_member wm ON wm.workspace_id = d.workspace_id AND wm.member_id = ?
-                WHERE d.workspace_id = ? AND d.type = 'WORKSPACE_HOME'
-                """, (rs, row) -> snapshot(rs, ContentSourceType.DOCUMENT, "space", workspaceId),
-                memberId, workspaceId);
-        return requireDocument(documents);
+    private void requireCurrentTitle(ContentSourceSnapshot source, ContentSourceSnapshot current) {
+        if (!Objects.equals(source.title(), current.title())) throw new ContentIndexingService.StaleContentException();
     }
 
-    private ContentSourceSnapshot lockAndReadDocument(ContentSourceSnapshot source) {
-        List<ContentSourceSnapshot> documents = jdbc.query("""
-                SELECT d.id, d.workspace_id, d.author_id, d.title, d.search_content,
-                       d.search_revision, d.search_content_hash, d.updated_at
-                FROM document d WHERE d.id = ? FOR UPDATE
-                """, (rs, row) -> snapshot(rs, ContentSourceType.DOCUMENT, source.resourceType(), source.resourceId()),
-                source.sourceId());
-        return requireDocument(documents);
+    private ContentTitleEmbedding.Id titleId(ContentSourceSnapshot source) {
+        return new ContentTitleEmbedding.Id(source.type(), source.sourceId());
     }
 
-    private ContentSourceSnapshot lockAndReadDailyNote(Long memberId, Long dailyNoteId) {
-        lockDailyNote(memberId, dailyNoteId);
-        lockLinkedPlans(dailyNoteId);
-        // Read after all locks are acquired, using the surrounding write transaction.
-        return findDailyNoteSnapshot(memberId, dailyNoteId);
-    }
-
-    private void lockDailyNote(Long memberId, Long dailyNoteId) {
-        List<Long> notes = jdbc.query("""
-                SELECT id FROM daily_note WHERE id = ? AND author_id = ? FOR UPDATE
-                """, (rs, row) -> rs.getLong("id"), dailyNoteId, memberId);
-        if (notes.isEmpty()) {
-            throw new NoSuchElementException("DailyNote를 찾을 수 없습니다");
-        }
-    }
-
-    private void lockLinkedPlans(Long dailyNoteId) {
-        jdbc.query("""
-                SELECT p.id
-                FROM daily_note_plan dnp JOIN plan p ON p.id = dnp.plan_id
-                WHERE dnp.daily_note_id = ?
-                ORDER BY p.id
-                FOR SHARE OF p, dnp
-                """, (rs, row) -> rs.getLong("id"), dailyNoteId);
-    }
-
-    private ContentSourceSnapshot requireDocument(List<ContentSourceSnapshot> documents) {
-        if (documents.isEmpty()) {
-            throw new NoSuchElementException("Document를 찾을 수 없습니다");
-        }
-        return documents.getFirst();
-    }
-
-    private ContentSourceSnapshot snapshot(java.sql.ResultSet rs, ContentSourceType type,
-                                           String resourceType, Long resourceId) throws java.sql.SQLException {
-        String content = type == ContentSourceType.DAILY_NOTE
-                ? Objects.requireNonNullElse(rs.getString("content"), "")
-                : Objects.requireNonNullElse(rs.getString("search_content"), "");
-        Long revision = rs.getObject("search_revision", Long.class);
-        LocalDateTime updatedAt = rs.getObject("updated_at", LocalDateTime.class);
-        return new ContentSourceSnapshot(type, rs.getLong("id"), rs.getObject("workspace_id", Long.class),
-                rs.getLong("author_id"), resourceType, resourceId, rs.getString("title"), content,
-                revision, ContentChunker.sha256(content), updatedAt);
-    }
-
-    public record EmbeddingTarget(Long id, String content, String hash, int attempt) {
-    }
-
-    public record DailyNoteReference(Long id, Long ownerId) {
-    }
-
-    public record TitleWork(ContentSourceSnapshot source, String model, int attempt) {
-    }
-
-    public record EmbeddingWork(ContentSourceSnapshot source, String model, List<EmbeddingTarget> targets) {
-    }
+    public record EmbeddingTarget(Long id, String content, String hash, int attempt) { }
+    public record TitleWork(ContentSourceSnapshot source, String model, int attempt) { }
+    public record EmbeddingWork(ContentSourceSnapshot source, String model, List<EmbeddingTarget> targets) { }
 }
