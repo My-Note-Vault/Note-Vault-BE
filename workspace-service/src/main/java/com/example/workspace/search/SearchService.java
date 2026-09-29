@@ -36,17 +36,16 @@ public class SearchService implements KeywordSearchReader {
 
     @Override
     @Transactional(readOnly = true)
-    public void scanHybridMatches(Long memberId, String question, List<String> keywords,
-                                  java.util.function.Consumer<FieldKeywordHit> consumer) {
+    public List<FieldKeywordHit> findHybridMatches(Long memberId, String question, List<String> keywords, int limit) {
         Objects.requireNonNull(memberId, "memberId");
         Objects.requireNonNull(question, "question");
-        Objects.requireNonNull(consumer, "consumer");
+        Objects.requireNonNull(keywords, "keywords");
+        if (limit < 1) throw new IllegalArgumentException("limit must be positive");
         List<String> terms = keywords.stream().filter(Objects::nonNull)
                 .map(String::strip).filter(term -> !term.isEmpty())
                 .map(term -> term.toLowerCase(Locale.ROOT)).distinct().toList();
-        if (!question.isBlank()) {
-            searchRepository.scanHybridMatches(memberId, question.strip(), terms, consumer);
-        }
+        return question.isBlank() ? List.of()
+                : searchRepository.findHybridMatches(memberId, question.strip(), terms, limit);
     }
 
     @Transactional(readOnly = true)

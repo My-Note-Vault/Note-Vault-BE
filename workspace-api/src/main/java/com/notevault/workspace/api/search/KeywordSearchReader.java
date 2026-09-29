@@ -1,13 +1,11 @@
 package com.notevault.workspace.api.search;
 
 import java.util.List;
-import java.util.function.Consumer;
 
 public interface KeywordSearchReader {
 
-    /** Streams accessible title/body matches, including original text without current chunks. */
-    void scanHybridMatches(Long memberId, String question, List<String> keywords,
-                           Consumer<FieldKeywordHit> consumer);
+    /** Returns at most limit documents per field, including original text without current chunks. */
+    List<FieldKeywordHit> findHybridMatches(Long memberId, String question, List<String> keywords, int limit);
 
     /** Loads a batch of original texts, checking access, body version and title in the same query. */
     List<SearchSourceContent> findAccessibleSources(Long memberId, List<SearchSourceRef> sources);

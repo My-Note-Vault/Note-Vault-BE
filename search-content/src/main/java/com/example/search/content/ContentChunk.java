@@ -2,6 +2,10 @@ package com.example.search.content;
 
 import jakarta.persistence.*;
 import lombok.*;
+import com.example.search.embedding.EmbeddingClient;
+import org.hibernate.annotations.Array;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 
 @Getter @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @Table(name="content_chunk",uniqueConstraints=@UniqueConstraint(name="uk_content_chunk_source_version_index",columnNames={"source_type","source_id","source_version","chunk_index"}),indexes={@Index(columnList="source_type, source_id, chunk_index"),@Index(columnList="workspace_id"),@Index(columnList="owner_id"),@Index(columnList="embedding_status, embedding_model")})
@@ -20,7 +24,9 @@ public class ContentChunk extends SearchAuditable {
     @Column(name="content_hash",nullable=false,length=64) private String contentHash;
     @Column(name="source_version",nullable=false,length=64) private String sourceVersion;
     @Column(name="source_updated_at") private java.time.LocalDateTime sourceUpdatedAt;
-    @Column(columnDefinition="TEXT") private String embedding;
+    @JdbcTypeCode(SqlTypes.VECTOR)
+    @Array(length = EmbeddingClient.DIMENSIONS)
+    @Column(columnDefinition = "vector(1536)") private float[] embedding;
     @Column(name="embedding_model") private String embeddingModel;
     @Enumerated(EnumType.STRING) @Column(name="embedding_status",nullable=false,length=20) private EmbeddingStatus embeddingStatus;
     @Column(name="embedding_attempts",nullable=false) private int embeddingAttempts;
@@ -34,7 +40,7 @@ public class ContentChunk extends SearchAuditable {
     public void retain(ContentSourceSnapshot source,int index){workspaceId=source.workspaceId();ownerId=source.ownerId();resourceType=source.resourceType();
         resourceId=source.resourceId();sourceTitle=source.title();sourceVersion=version(source);sourceUpdatedAt=source.sourceUpdatedAt();chunkIndex=index;}
     public void startEmbedding(){embeddingStatus=EmbeddingStatus.PROCESSING;embeddingAttempts++;embeddingError=null;}
-    public void saveEmbedding(String value,String model){embedding=value;embeddingModel=model;embeddingStatus=EmbeddingStatus.READY;embeddingError=null;}
+    public void saveEmbedding(float[] value,String model){embedding=value;embeddingModel=model;embeddingStatus=EmbeddingStatus.READY;embeddingError=null;}
     public void failEmbedding(String message){embeddingStatus=EmbeddingStatus.FAILED;embeddingError=message;}
     private static String version(ContentSourceSnapshot source){return source.version();}
 }

@@ -17,6 +17,8 @@ import java.util.function.Consumer;
 
 @Component
 public class OpenAiSearchClient {
+    // Must match the Worker's embedding contract and PostgreSQL vector(1536) columns.
+    private static final int EMBEDDING_DIMENSIONS = 1536;
     private final ObjectMapper mapper;
     private final RestClient client;
 
@@ -42,14 +44,25 @@ public class OpenAiSearchClient {
 
     /** Embeds a single search question; document indexing belongs to the worker. */
     public String embedQuestion(String question) {
-        JsonNode response = post("/embeddings", Map.of("model", embeddingModel, "input", question));
+        JsonNode response = post("/embeddings", Map.of("model", embeddingModel, "input", question,
+                "dimensions", EMBEDDING_DIMENSIONS));
         JsonNode data = response == null ? null : response.get("data");
         if (data == null || !data.isArray() || data.size() != 1
                 || !data.get(0).path("embedding").isArray()
-                || data.get(0).path("embedding").isEmpty()) {
+                || data.get(0).path("embedding").size() != EMBEDDING_DIMENSIONS) {
             throw new IllegalStateException("질문 임베딩 응답이 올바르지 않습니다.");
         }
-        return data.get(0).get("embedding").toString();
+        JsonNode vector = data.get(0).get("embedding");
+        boolean nonZero = false;
+        for (JsonNode value : vector) {
+            if (!value.isNumber() || !Float.isFinite(value.floatValue())) {
+                throw new IllegalStateException("질문 임베딩에 유효하지 않은 숫자가 있습니다.");
+            }
+            nonZero |= value.floatValue() != 0;
+        }
+        if (!nonZero) throw new IllegalStateException("질문 임베딩은 영벡터일 수 없습니다.");
+        // Bound as a query parameter and cast to vector in SQL; never stored as TEXT.
+        return vector.toString();
     }
 
     public String answer(String question, String context) {

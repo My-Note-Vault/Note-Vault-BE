@@ -5,7 +5,6 @@ import com.notevault.workspace.api.search.KeywordSourceType;
 import com.notevault.workspace.api.search.SearchSourceContent;
 import com.notevault.workspace.api.search.SearchSourceRef;
 import lombok.RequiredArgsConstructor;
-import org.springframework.jdbc.core.PreparedStatementCallback;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Repository;
 
@@ -16,7 +15,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.HashMap;
 import java.util.ArrayList;
-import java.util.function.Consumer;
 
 @RequiredArgsConstructor
 @Repository
@@ -53,10 +51,10 @@ public class SearchRepository {
 
     private final NamedParameterJdbcTemplate jdbcTemplate;
 
-    public void scanHybridMatches(Long memberId, String question, List<String> keywords,
-                                  Consumer<FieldKeywordHit> consumer) {
+    public List<FieldKeywordHit> findHybridMatches(Long memberId, String question, List<String> keywords, int limit) {
         Map<String, Object> parameters = new HashMap<>(params(memberId, question));
         parameters.put("question", question);
+        parameters.put("limit", limit);
         List<String> counts = new ArrayList<>();
         for (int index = 0; index < keywords.size(); index++) {
             String name = "term" + index;
@@ -90,25 +88,28 @@ public class SearchRepository {
                                  ELSE 0.0 END)
                            + (%s) * 1.0 / :denominator AS score
                     FROM fields
+                ), document_matches AS (
+                    SELECT *, ROW_NUMBER() OVER (
+                        PARTITION BY source_type, source_id, matched_field
+                        ORDER BY score DESC, chunk_id NULLS LAST
+                    ) AS document_position
+                    FROM scored WHERE score > 0
+                ), field_matches AS (
+                    SELECT *, ROW_NUMBER() OVER (
+                        PARTITION BY matched_field ORDER BY score DESC, source_type, source_id
+                    ) AS field_position
+                    FROM document_matches WHERE document_position = 1
                 )
                 SELECT source_type, source_id, version, title, matched_field, chunk_id, score
-                FROM scored WHERE score > 0
+                FROM field_matches WHERE field_position <= :limit
+                ORDER BY matched_field, field_position
                 """.formatted(count);
         parameters.put("denominator", Math.max(1, keywords.size()));
-        jdbcTemplate.execute(sql, parameters, (PreparedStatementCallback<Void>) statement -> {
-            statement.setFetchSize(256);
-            try (var rows = statement.executeQuery()) {
-                while (rows.next()) {
-                    consumer.accept(new FieldKeywordHit(
-                            new SearchSourceRef(KeywordSourceType.valueOf(rows.getString("source_type")),
-                                    rows.getLong("source_id"), rows.getString("version"), rows.getString("title")),
-                            FieldKeywordHit.MatchedField.valueOf(rows.getString("matched_field")),
-                            rows.getObject("chunk_id", Long.class),
-                            rows.getDouble("score")));
-                }
-            }
-            return null;
-        });
+        return jdbcTemplate.query(sql, parameters, (rows, row) -> new FieldKeywordHit(
+                new SearchSourceRef(KeywordSourceType.valueOf(rows.getString("source_type")),
+                        rows.getLong("source_id"), rows.getString("version"), rows.getString("title")),
+                FieldKeywordHit.MatchedField.valueOf(rows.getString("matched_field")),
+                rows.getObject("chunk_id", Long.class), rows.getDouble("score")));
     }
 
     public List<SearchSourceContent> findAccessibleSources(Long memberId, List<SearchSourceRef> sources) {

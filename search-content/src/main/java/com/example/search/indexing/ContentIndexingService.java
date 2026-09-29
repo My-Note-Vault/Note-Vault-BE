@@ -40,8 +40,9 @@ public class ContentIndexingService {
         if (work == null) return;
         try {
             // The transaction that claims the title has finished before this external call.
-            List<String> vectors = openAi.embed(List.of(work.source().title()));
-            if (vectors == null || vectors.size() != 1 || vectors.getFirst() == null || vectors.getFirst().isBlank()) {
+            List<float[]> vectors = openAi.embed(List.of(work.source().title()));
+            if (vectors == null || vectors.size() != 1 || vectors.getFirst() == null
+                    || vectors.getFirst().length != EmbeddingClient.DIMENSIONS) {
                 throw new IllegalStateException("제목 임베딩 응답이 비어 있거나 개수가 일치하지 않습니다.");
             }
             transactions.completeTitle(work, vectors.getFirst());
@@ -64,10 +65,10 @@ public class ContentIndexingService {
             return;
         }
         try {
-            List<String> vectors = openAi.embed(work.targets().stream()
+            List<float[]> vectors = openAi.embed(work.targets().stream()
                     .map(ContentIndexingTransactions.EmbeddingTarget::content).toList());
             if (vectors == null || vectors.size() != work.targets().size()
-                    || vectors.stream().anyMatch(value -> value == null || value.isBlank())) {
+                    || vectors.stream().anyMatch(value -> value == null || value.length != EmbeddingClient.DIMENSIONS)) {
                 throw new IllegalStateException("임베딩 응답 개수가 청크 개수와 일치하지 않거나 결과가 비어 있습니다.");
             }
             transactions.complete(work, vectors);

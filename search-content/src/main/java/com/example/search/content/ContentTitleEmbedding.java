@@ -1,6 +1,10 @@
 package com.example.search.content;
 
 import jakarta.persistence.*;
+import com.example.search.embedding.EmbeddingClient;
+import org.hibernate.annotations.Array;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 import lombok.AccessLevel;
 import lombok.AllArgsConstructor;
 import lombok.EqualsAndHashCode;
@@ -18,7 +22,9 @@ import java.util.Objects;
 public class ContentTitleEmbedding {
     @EmbeddedId private Id id;
     @Column(name = "source_title", nullable = false, columnDefinition = "TEXT") private String title;
-    @Column(columnDefinition = "TEXT") private String embedding;
+    @JdbcTypeCode(SqlTypes.VECTOR)
+    @Array(length = EmbeddingClient.DIMENSIONS)
+    @Column(columnDefinition = "vector(1536)") private float[] embedding;
     @Column(name = "embedding_model", nullable = false) private String model;
     @Enumerated(EnumType.STRING)
     @Column(name = "embedding_status", nullable = false, length = 20) private EmbeddingStatus status;
@@ -47,7 +53,7 @@ public class ContentTitleEmbedding {
         return matches(title, model) && status == EmbeddingStatus.PROCESSING && attempts == attempt;
     }
 
-    public void complete(String vector) {
+    public void complete(float[] vector) {
         embedding = vector;
         status = EmbeddingStatus.READY;
         error = null;

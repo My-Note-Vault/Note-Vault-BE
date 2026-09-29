@@ -59,7 +59,7 @@ public class ContentIndexingTransactions {
         return new TitleWork(current, model, attempt);
     }
 
-    public void completeTitle(TitleWork work, String vector) {
+    public void completeTitle(TitleWork work, float[] vector) {
         ContentSourceSnapshot current = lockAndReadSource(work.source());
         requireCurrentTitle(work.source(), current);
         ContentTitleEmbedding title = titles.findById(titleId(current))
@@ -120,7 +120,7 @@ public class ContentIndexingTransactions {
         return new EmbeddingWork(current, model, List.copyOf(work));
     }
 
-    public void complete(EmbeddingWork work, List<String> vectors) {
+    public void complete(EmbeddingWork work, List<float[]> vectors) {
         ContentSourceSnapshot currentSource = lockAndReadSource(work.source());
         requireCurrent(work.source(), currentSource);
         Map<Long, ContentChunk> current = chunksById(work.source());

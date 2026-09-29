@@ -8,9 +8,9 @@ public record SearchEvidence(
         Long chunkId, SearchSourceRef source, Long resourceId, String resourceType,
         String content, Double similarity
 ) {
-    public static SearchEvidence fromChunk(IndexedChunk chunk, Double similarity) {
+    public static SearchEvidence fromChunk(IndexedChunk chunk) {
         return new SearchEvidence(chunk.id(), chunk.source(), chunk.resourceId(),
-                chunk.resourceType(), chunk.content(), similarity);
+                chunk.resourceType(), chunk.content(), chunk.similarity());
     }
 
     public static SearchEvidence fromSource(SearchSourceContent source, String excerpt) {

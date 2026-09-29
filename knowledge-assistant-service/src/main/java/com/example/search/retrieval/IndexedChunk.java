@@ -9,6 +9,6 @@ public record IndexedChunk(
         Long resourceId,
         String resourceType,
         String content,
-        String embedding
+        Double similarity
 ) {
 }

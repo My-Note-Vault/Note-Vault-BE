@@ -3,24 +3,34 @@ package com.example.search.retrieval;
 import com.notevault.workspace.api.search.KeywordSourceType;
 import com.notevault.workspace.api.search.SearchSourceRef;
 import lombok.RequiredArgsConstructor;
-import org.springframework.jdbc.core.PreparedStatementCallback;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.List;
-import java.util.Map;
 import java.sql.ResultSet;
 import java.sql.SQLException;
-import java.util.function.Consumer;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Locale;
+import java.util.Map;
+import java.util.Objects;
 
+/** PostgreSQL compares vectors; only candidate scores and selected content leave the database. */
 @RequiredArgsConstructor
 @Repository
 public class IndexedChunkReader {
     private final NamedParameterJdbcTemplate jdbc;
 
+    @Value("${openai.chat.semantic-chunk-candidate-limit:1000}")
+    private int chunkCandidateLimit;
+    @Value("${openai.chat.hnsw-ef-search:100}")
+    private int efSearch;
+
     private static final String ACCESSIBLE_SOURCES = """
-            WITH accessible AS (
+            WITH accessible AS MATERIALIZED (
                 SELECT 'DOCUMENT' AS source_type, d.id AS source_id,
                        COALESCE(d.title, '') AS title,
                        CAST(d.search_revision AS VARCHAR) AS version,
@@ -41,68 +51,196 @@ public class IndexedChunkReader {
             )
             """;
 
-    private static final String CHUNKS = ACCESSIBLE_SOURCES + """
-            SELECT c.id, c.source_type, c.source_id, a.resource_id, a.resource_type,
-                   a.title AS source_title, a.version AS source_version, c.content,
-                   CASE WHEN c.embedding_status = 'READY' AND c.embedding_model = :model
-                        THEN c.embedding ELSE NULL END AS embedding
-            FROM content_chunk c JOIN accessible a
-              ON a.source_type = c.source_type AND a.source_id = c.source_id
-             AND a.version = c.source_version
+    // Direct distance ORDER BY + LIMIT allows HNSW. Access/freshness filters precede LIMIT.
+    private static final String SIMILAR_CHUNKS = ACCESSIBLE_SOURCES + """
+            , nearest AS MATERIALIZED (
+                SELECT c.source_type, c.source_id, c.source_version,
+                       c.embedding <=> CAST(:query AS vector(1536)) AS distance
+                FROM content_chunk c
+                WHERE c.embedding_status = 'READY' AND c.embedding_model = :model
+                  AND c.embedding IS NOT NULL
+                  AND EXISTS (
+                      SELECT 1 FROM accessible a
+                      WHERE a.source_type = c.source_type AND a.source_id = c.source_id
+                        AND a.version = c.source_version
+                  )
+                ORDER BY c.embedding <=> CAST(:query AS vector(1536))
+                LIMIT :limit
+            )
+            SELECT n.source_type, n.source_id, a.version AS source_version, a.title AS source_title,
+                   1 - n.distance AS similarity
+            FROM nearest n JOIN accessible a
+              ON a.source_type = n.source_type AND a.source_id = n.source_id
+             AND a.version = n.source_version
+            ORDER BY n.distance, n.source_type, n.source_id
             """;
 
     @Transactional(readOnly = true)
-    public void scanAccessibleChunks(Long memberId, String model, Consumer<IndexedChunk> consumer) {
-        jdbc.execute(CHUNKS, Map.of("memberId", memberId, "model", model),
-                (PreparedStatementCallback<Void>) statement -> {
-                    // PostgreSQL uses a cursor inside this read-only transaction.
-                    statement.setFetchSize(256);
-                    try (ResultSet rows = statement.executeQuery()) {
-                        while (rows.next()) consumer.accept(readChunk(rows));
-                    }
-                    return null;
-                });
+    public Map<SearchSourceRef, Double> findSimilarTitles(
+            Long memberId, String model, String query, double minSimilarity, int limit) {
+        configureVectorSearch();
+        Map<String, Object> parameters = parameters(memberId, model, query);
+        parameters.put("limit", limit);
+        List<SemanticHit> hits = jdbc.query(ACCESSIBLE_SOURCES + """
+                , nearest AS MATERIALIZED (
+                    SELECT t.source_type, t.source_id, t.source_title,
+                           t.embedding <=> CAST(:query AS vector(1536)) AS distance
+                    FROM content_title_embedding t
+                    WHERE t.embedding_status = 'READY' AND t.embedding_model = :model
+                      AND t.embedding IS NOT NULL
+                      AND EXISTS (
+                          SELECT 1 FROM accessible a
+                          WHERE a.source_type = t.source_type AND a.source_id = t.source_id
+                            AND a.title = t.source_title
+                      )
+                    ORDER BY t.embedding <=> CAST(:query AS vector(1536))
+                    LIMIT :limit
+                )
+                SELECT n.source_type, n.source_id, a.version AS source_version, a.title AS source_title,
+                       1 - n.distance AS similarity
+                FROM nearest n JOIN accessible a
+                  ON a.source_type = n.source_type AND a.source_id = n.source_id
+                 AND a.title = n.source_title
+                ORDER BY n.distance, n.source_type, n.source_id
+                """, parameters, (rows, row) -> readHit(rows));
+        return rankDocuments(hits, minSimilarity, limit);
     }
 
     @Transactional(readOnly = true)
-    public void scanAccessibleTitles(Long memberId, String model, Consumer<IndexedTitle> consumer) {
-        jdbc.execute(ACCESSIBLE_SOURCES + """
-                SELECT t.source_type, t.source_id, a.version AS source_version,
-                       a.title AS source_title, t.embedding
-                FROM content_title_embedding t JOIN accessible a
-                  ON a.source_type = t.source_type AND a.source_id = t.source_id
-                 AND a.title = t.source_title
-                WHERE t.embedding_status = 'READY' AND t.embedding_model = :model
-                """, Map.of("memberId", memberId, "model", model),
-                (PreparedStatementCallback<Void>) statement -> {
-                    statement.setFetchSize(256);
-                    try (ResultSet rows = statement.executeQuery()) {
-                        while (rows.next()) consumer.accept(new IndexedTitle(
-                                readSource(rows),
-                                rows.getString("embedding")));
-                    }
-                    return null;
-                });
+    public Map<SearchSourceRef, Double> findSimilarDocuments(
+            Long memberId, String model, String query, double minSimilarity, int limit) {
+        if (chunkCandidateLimit < limit || chunkCandidateLimit > 10000) {
+            throw new IllegalArgumentException("semantic-chunk-candidate-limit must be between candidate-limit and 10000");
+        }
+        configureVectorSearch();
+        Map<String, Object> parameters = parameters(memberId, model, query);
+        int chunkLimit = Math.min(chunkCandidateLimit, limit * 4);
+        while (true) {
+            parameters.put("limit", chunkLimit);
+            List<SemanticHit> hits = jdbc.query(SIMILAR_CHUNKS, parameters, (rows, row) -> readHit(rows));
+            Map<SearchSourceRef, Double> ranked = rankDocuments(hits, minSimilarity, limit);
+            // Expand a bounded window if one long document occupies many chunk positions.
+            if (ranked.size() >= limit || hits.size() < chunkLimit || chunkLimit == chunkCandidateLimit
+                    || hits.getLast().similarity() < minSimilarity) {
+                return ranked;
+            }
+            chunkLimit = Math.min(chunkCandidateLimit, chunkLimit * 2);
+        }
     }
 
+    /** Exact reranking only within selected documents, including keyword-only/title-only hits. */
     @Transactional(readOnly = true)
-    public List<IndexedChunk> findAccessibleByIds(Long memberId, String model, List<Long> ids) {
-        if (ids.isEmpty()) return List.of();
-        return jdbc.query(CHUNKS + " WHERE c.id IN (:ids)",
-                Map.of("memberId", memberId, "model", model, "ids", ids), (rs, row) -> readChunk(rs));
+    public List<IndexedChunk> findBestChunks(Long memberId, String model, String query,
+                                            String question, List<String> keywords,
+                                            List<SearchSourceRef> sources, double minSimilarity, int limit) {
+        if (sources.isEmpty()) return List.of();
+        Map<String, Object> parameters = parameters(memberId, model, query);
+        parameters.put("minSimilarity", minSimilarity);
+        parameters.put("limit", limit);
+        List<String> requested = new ArrayList<>();
+        for (int index = 0; index < sources.size(); index++) {
+            SearchSourceRef source = sources.get(index);
+            parameters.put("type" + index, source.sourceType().name());
+            parameters.put("id" + index, source.sourceId());
+            parameters.put("version" + index, source.version());
+            parameters.put("title" + index, source.title());
+            requested.add("(:type%d, CAST(:id%d AS BIGINT), :version%d, :title%d)"
+                    .formatted(index, index, index, index));
+        }
+        String keywordScore = keywordScore(question, keywords, parameters);
+        String sql = ACCESSIBLE_SOURCES + """
+                , requested(source_type, source_id, version, title) AS (VALUES %s), scored AS (
+                    SELECT c.id, c.source_type, c.source_id, a.resource_id, a.resource_type,
+                           a.title AS source_title, a.version AS source_version, c.content,
+                           CASE WHEN c.embedding_status = 'READY' AND c.embedding_model = :model
+                                THEN 1 - (c.embedding <=> CAST(:query AS vector(1536))) END AS similarity,
+                           %s AS keyword_score
+                    FROM content_chunk c
+                    JOIN requested r ON r.source_type = c.source_type AND r.source_id = c.source_id
+                                    AND r.version = c.source_version
+                    JOIN accessible a ON a.source_type = r.source_type AND a.source_id = r.source_id
+                                     AND a.version = r.version AND a.title = r.title
+                    WHERE c.content IS NOT NULL AND BTRIM(c.content) <> ''
+                ), ranked AS (
+                    SELECT *, ROW_NUMBER() OVER (
+                        PARTITION BY source_type, source_id
+                        ORDER BY (0.7 * GREATEST(0, LEAST(1,
+                                      (COALESCE(similarity, :minSimilarity) - :minSimilarity)
+                                      / (1 - :minSimilarity)))
+                                  + 0.3 * LEAST(1, keyword_score / 4.0)) DESC,
+                                 similarity DESC NULLS LAST, id
+                    ) AS position
+                    FROM scored
+                )
+                SELECT id, source_type, source_id, resource_id, resource_type,
+                       source_title, source_version, content, similarity
+                FROM ranked WHERE position <= :limit
+                ORDER BY source_type, source_id, position
+                """.formatted(String.join(", ", requested), keywordScore);
+        return jdbc.query(sql, parameters, (rows, row) -> new IndexedChunk(rows.getLong("id"), readSource(rows),
+                rows.getLong("resource_id"), rows.getString("resource_type"), rows.getString("content"),
+                rows.getObject("similarity", Double.class)));
     }
 
-    private IndexedChunk readChunk(ResultSet rs) throws SQLException {
-        return new IndexedChunk(rs.getLong("id"), readSource(rs),
-                rs.getLong("resource_id"), rs.getString("resource_type"),
-                rs.getString("content"), rs.getString("embedding"));
+    private void configureVectorSearch() {
+        if (efSearch < 1 || efSearch > 1000) throw new IllegalArgumentException("hnsw-ef-search must be between 1 and 1000");
+        // Transaction-local settings cannot leak to the next request on this pooled connection.
+        // pgvector >= 0.8 can continue traversing when access/model/version filters discard neighbors.
+        jdbc.queryForMap("""
+                SELECT set_config('hnsw.iterative_scan', 'strict_order', true) AS iterative_scan,
+                       set_config('hnsw.ef_search', :efSearch, true) AS ef_search
+                """, Map.of("efSearch", Integer.toString(efSearch)));
     }
 
-    private SearchSourceRef readSource(ResultSet rs) throws SQLException {
-        return new SearchSourceRef(KeywordSourceType.valueOf(rs.getString("source_type")),
-                rs.getLong("source_id"), rs.getString("source_version"), rs.getString("source_title"));
+    private Map<SearchSourceRef, Double> rankDocuments(List<SemanticHit> hits, double minimum, int limit) {
+        Map<SearchSourceRef, Double> result = new LinkedHashMap<>();
+        for (SemanticHit hit : hits) {
+            if (hit.similarity() >= minimum) result.merge(hit.source(), hit.similarity(), Math::max);
+            if (result.size() == limit) break;
+        }
+        return result;
     }
 
-    public record IndexedTitle(SearchSourceRef source, String embedding) {
+    // Same field score as KeywordSearchReader: exact question, phrase, then matched-term ratio.
+    private String keywordScore(String question, List<String> keywords, Map<String, Object> parameters) {
+        parameters.put("question", question.strip());
+        parameters.put("phrase", "%" + escapeLike(question.strip()) + "%");
+        parameters.put("escape", "\\");
+        List<String> terms = keywords.stream().filter(Objects::nonNull).map(String::strip)
+                .filter(term -> !term.isEmpty()).map(term -> term.toLowerCase(Locale.ROOT)).distinct().toList();
+        List<String> counts = new ArrayList<>();
+        for (int index = 0; index < terms.size(); index++) {
+            parameters.put("term" + index, "%" + escapeLike(terms.get(index)) + "%");
+            counts.add("CASE WHEN c.content ILIKE :term" + index + " ESCAPE :escape THEN 1 ELSE 0 END");
+        }
+        parameters.put("denominator", Math.max(1, terms.size()));
+        return """
+                (CASE WHEN LOWER(c.content) = LOWER(:question) THEN 3.0
+                      WHEN c.content ILIKE :phrase ESCAPE :escape THEN 2.0 ELSE 0.0 END)
+                + (%s) * 1.0 / :denominator
+                """.formatted(counts.isEmpty() ? "0" : String.join(" + ", counts));
     }
+
+    private String escapeLike(String value) {
+        return value.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_");
+    }
+
+    private Map<String, Object> parameters(Long memberId, String model, String query) {
+        Map<String, Object> parameters = new HashMap<>();
+        parameters.put("memberId", memberId);
+        parameters.put("model", model);
+        parameters.put("query", query);
+        return parameters;
+    }
+
+    private SemanticHit readHit(ResultSet rows) throws SQLException {
+        return new SemanticHit(readSource(rows), rows.getDouble("similarity"));
+    }
+
+    private SearchSourceRef readSource(ResultSet rows) throws SQLException {
+        return new SearchSourceRef(KeywordSourceType.valueOf(rows.getString("source_type")),
+                rows.getLong("source_id"), rows.getString("source_version"), rows.getString("source_title"));
+    }
+
+    private record SemanticHit(SearchSourceRef source, double similarity) { }
 }
