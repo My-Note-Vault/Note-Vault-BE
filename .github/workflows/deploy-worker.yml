@@ -1,36 +1,40 @@
-name: Deploy API
+name: Deploy Worker
 
 on:
   workflow_dispatch:
   push:
-    branches: [ "main" ]
+    branches: ["main"]
     paths:
-      - "src/**"
-      - "common/**"
-      - "platform-api/**"
-      - "platform-service/**"
-      - "workspace-api/**"
-      - "workspace-service/**"
-      - "knowledge-assistant-service/**"
-      - "search-sync/**"
+      - "search-content/**"
+      - "embedding/**"
       - "build.gradle"
       - "settings.gradle"
       - "gradle.properties"
       - "gradle/**"
       - "gradlew"
-      - "Dockerfile"
       - ".dockerignore"
-      - ".github/workflows/deploy.yml"
+      - ".github/workflows/deploy-worker.yml"
 
 concurrency:
-  group: production-api-deploy
+  group: production-worker-deploy
   cancel-in-progress: false
 
 jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
+    env:
+      DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
+      TAG: ${{ github.sha }}
+      WORKER_PRIVATE_IP: ${{ secrets.WORKER_PRIVATE_IP }}
+      WORKER_SSH_KEY_PATH: ${{ vars.WORKER_SSH_KEY_PATH }}
 
     steps:
+      - name: Check Worker host
+        shell: bash
+        run: |
+          set -euo pipefail
+          : "${WORKER_PRIVATE_IP:?Set the WORKER_PRIVATE_IP repository secret}"
+
       - name: Checkout
         uses: actions/checkout@v4
 
@@ -40,12 +44,12 @@ jobs:
           distribution: temurin
           java-version: "21"
 
-      - name: Build (bootJar)
+      - name: Build Worker
         shell: bash
         run: |
           set -euo pipefail
           chmod +x ./gradlew
-          ./gradlew clean :bootJar
+          ./gradlew clean :search-content:bootJar
 
       - name: Docker Login
         uses: docker/login-action@v3
@@ -53,25 +57,24 @@ jobs:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
-      - name: Build & Push Docker Image
+      - name: Build and push Worker image
         shell: bash
         run: |
           set -euo pipefail
-          IMAGE="${{ secrets.DOCKERHUB_USERNAME }}/note-vault"
-          TAG="${{ github.sha }}"
-
-          docker build --no-cache -t "${IMAGE}:${TAG}" -t "${IMAGE}:latest" .
+          IMAGE="${DOCKERHUB_USERNAME}/note-vault-worker"
+          docker build --no-cache -f search-content/Dockerfile \
+            -t "${IMAGE}:${TAG}" -t "${IMAGE}:latest" .
           docker push "${IMAGE}:${TAG}"
           docker push "${IMAGE}:latest"
 
-      - name: Deploy via Web EC2
+      - name: Deploy Worker via WEB
         uses: appleboy/ssh-action@v1
         with:
           host: ${{ secrets.WEB_HOST }}
           username: ec2-user
           key: ${{ secrets.WEB_SSH_KEY }}
+          envs: DOCKERHUB_USERNAME,TAG,WORKER_PRIVATE_IP,WORKER_SSH_KEY_PATH
+          command_timeout: 15m
           script: |
             set -euo pipefail
-            export DOCKERHUB_USERNAME="${{ secrets.DOCKERHUB_USERNAME }}"
-            export IMAGE_NAME="note-vault"
-            bash /home/ec2-user/deploy/deploy-was.sh "${{ github.sha }}"
+            bash /home/ec2-user/deploy/deploy-worker.sh "$TAG"
