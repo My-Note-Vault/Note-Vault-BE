@@ -15,6 +15,9 @@ java {
 
 dependencies {
     implementation project(":embedding")
+    implementation 'org.springframework.boot:spring-boot-starter-actuator'
+    implementation 'org.graalvm.polyglot:polyglot:23.1.12.1.1'
+    runtimeOnly 'org.graalvm.polyglot:js-community:23.1.12.1.1'
     implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
     // Boot 3.5 does not manage hibernate-vector; keep it aligned with its Hibernate core.
     implementation "org.hibernate.orm:hibernate-vector:${dependencyManagement.importedProperties['hibernate.version']}"

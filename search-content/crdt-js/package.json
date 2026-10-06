@@ -1,0 +1,13 @@
+{
+  "name": "note-vault-yjs-projector",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "engines": { "node": ">=22" },
+  "scripts": { "build": "node build.mjs" },
+  "dependencies": {
+    "js-base64": "3.9.4",
+    "yjs": "13.6.30"
+  },
+  "devDependencies": { "esbuild": "0.28.2" }
+}

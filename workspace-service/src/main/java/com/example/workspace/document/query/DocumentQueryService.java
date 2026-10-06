@@ -42,9 +42,9 @@ public class DocumentQueryService {
             final DocumentType type
     ) {
         Document document = type == DocumentType.WORKSPACE_HOME
-                ? documentRepository.findByWorkSpaceIdAndType(workSpaceId, type)
+                ? documentRepository.findWithReadLockByWorkSpaceIdAndType(workSpaceId, type)
                         .orElseThrow(() -> new NoSuchElementException(type.notFoundMessage()))
-                : documentRepository.findByIdAndType(documentId, type)
+                : documentRepository.findWithReadLockByIdAndType(documentId, type)
                         .orElseThrow(() -> new NoSuchElementException(type.notFoundMessage()));
 
         return findCollaborationHistory(
@@ -83,17 +83,17 @@ public class DocumentQueryService {
         }
 
         long revision = lastAppliedRevision == null ? 0L : Math.max(0L, lastAppliedRevision);
-        long searchRevision = document.getSearchRevision() == null
+        long storedSnapshotRevision = document.getSnapshotRevision() == null
                 ? 0L
-                : document.getSearchRevision();
+                : document.getSnapshotRevision();
         long snapshotRevision = 0L;
         byte[] crdtState = null;
         if (
                 document.getCrdtState() != null &&
                 document.getCrdtState().length > 0 &&
-                revision < searchRevision
+                revision < storedSnapshotRevision
         ) {
-            snapshotRevision = searchRevision;
+            snapshotRevision = storedSnapshotRevision;
             revision = snapshotRevision;
             crdtState = document.getCrdtState();
         }

@@ -9,9 +9,14 @@ import org.springframework.data.repository.query.Param;
 import jakarta.persistence.LockModeType;
 import java.util.Collection;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 public interface SearchSyncOutboxRepository extends JpaRepository<SearchSyncOutbox, UUID> {
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("select o from SearchSyncOutbox o where o.eventId = :id")
+    Optional<SearchSyncOutbox> findForUpdate(@Param("id") UUID id);
+
     @Query(value = """
             SELECT * FROM search_sync_outbox
             WHERE status = 'PENDING' AND next_attempt_at <= CURRENT_TIMESTAMP

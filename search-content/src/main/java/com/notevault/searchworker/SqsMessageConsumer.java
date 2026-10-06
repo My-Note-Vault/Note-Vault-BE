@@ -1,6 +1,5 @@
 package com.notevault.searchworker;
 
-import com.example.search.indexing.SearchContentSync;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.ObjectReader;
 import com.fasterxml.jackson.databind.DeserializationFeature;
@@ -20,19 +19,19 @@ public class SqsMessageConsumer implements SmartLifecycle {
     private final SqsClient client;
     private final WorkerSqsProperties properties;
     private final ObjectReader reader;
-    private final SearchContentSync sync;
+    private final WorkerMessageDispatcher dispatcher;
     private final ScheduledExecutorService heartbeat;
     private volatile boolean running;
     private ExecutorService workers;
 
     public SqsMessageConsumer(SqsClient client, WorkerSqsProperties properties, ObjectMapper mapper,
-                             SearchContentSync sync, ScheduledExecutorService heartbeat) {
+                             WorkerMessageDispatcher dispatcher, ScheduledExecutorService heartbeat) {
         this.client = client;
         this.properties = properties;
         this.reader = mapper.readerFor(SearchSyncMessage.class)
                 .with(DeserializationFeature.FAIL_ON_NUMBERS_FOR_ENUMS, DeserializationFeature.FAIL_ON_TRAILING_TOKENS)
                 .without(DeserializationFeature.ACCEPT_FLOAT_AS_INT);
-        this.sync = sync;
+        this.dispatcher = dispatcher;
         this.heartbeat = heartbeat;
     }
 
@@ -78,14 +77,12 @@ public class SqsMessageConsumer implements SmartLifecycle {
             try {
                 event = reader.readValue(message.body());
                 if (event == null) throw new IllegalArgumentException("Search sync message must be a JSON object");
-                // Both REFRESH and DELETE reconcile the current DB state. A late event cannot restore deleted content.
-                SearchContentSync.Result result = sync.synchronize(
-                        event.sourceType(), event.sourceId(), event.contentRevision());
+                String result = dispatcher.dispatch(event);
                 visibility.beforeDelete();
                 client.deleteMessage(request -> request.queueUrl(properties.queueUrl())
                         .receiptHandle(message.receiptHandle()));
-                log.info("Search sync completed: eventId={}, sourceType={}, sourceId={}, result={}, receiveCount={}, durationMs={}",
-                        event.eventId(), event.sourceType(), event.sourceId(), result, receiveCount,
+                log.info("Worker completed: eventId={}, messageType={}, sourceType={}, sourceId={}, result={}, receiveCount={}, durationMs={}",
+                        event.eventId(), event.messageType(), event.sourceType(), event.sourceId(), result, receiveCount,
                         TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - started));
             } catch (Exception failure) {
                 try {
@@ -94,15 +91,26 @@ public class SqsMessageConsumer implements SmartLifecycle {
                     failure.addSuppressed(retryFailure);
                 }
                 // Never acknowledge failures, including malformed contracts and failed DeleteMessage calls.
-                log.warn("Search sync failed: messageId={}, eventId={}, sourceType={}, sourceId={}, receiveCount={}",
+                log.warn("Worker failed: messageId={}, eventId={}, messageType={}, sourceType={}, sourceId={}, receiveCount={}, error={}",
                         message.messageId(), event == null ? null : event.eventId(),
+                        event == null ? null : event.messageType(),
                         event == null ? null : event.sourceType(), event == null ? null : event.sourceId(),
-                        receiveCount, failure);
+                        receiveCount, safeReason(failure));
             }
         } finally {
             // A lost visibility lease cancels this delivery, not the worker's next receive loop.
             if (running) Thread.interrupted();
         }
+    }
+
+    // Parser/guest exceptions can contain document content or the original message body.
+    private String safeReason(Exception failure) {
+        for (Throwable cause = failure; cause != null; cause = cause.getCause()) {
+            if (cause instanceof com.example.search.crdt.YjsProjectionException yjs) {
+                return "YJS_" + yjs.reason();
+            }
+        }
+        return failure.getClass().getSimpleName();
     }
 
     private int receiveCount(Message message) {

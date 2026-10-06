@@ -1,0 +1,47 @@
+spring:
+  application:
+    name: search-content-worker
+  main:
+    web-application-type: none
+    keep-alive: true
+  lifecycle:
+    timeout-per-shutdown-phase: 95s
+  cloud:
+    aws:
+      credentials:
+        # Same property names as the API. Supply values in the worker's external YAML.
+        access-key: ${AWS_ACCESS_KEY_ID:}
+        secret-key: ${AWS_SECRET_ACCESS_KEY:}
+  datasource:
+    driver-class-name: org.postgresql.Driver
+    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5432/note_vault}
+    username: ${SPRING_DATASOURCE_USERNAME:postgres}
+    password: ${SPRING_DATASOURCE_PASSWORD:1234}
+    hikari:
+      pool-name: search-worker-pool
+      maximum-pool-size: ${WORKER_DB_POOL_SIZE:3}
+      minimum-idle: ${WORKER_DB_MIN_IDLE:1}
+  jpa:
+    open-in-view: false
+    hibernate:
+      ddl-auto: validate
+
+worker:
+  crdt:
+    concurrency: 1
+    execution-timeout: 10s
+    startup-timeout: 30s
+    max-input-bytes: 33554432
+    max-state-bytes: 33554432
+    max-content-characters: 4194304
+    max-updates: 100000
+  sqs:
+    enabled: ${WORKER_SQS_ENABLED:false}
+    queue-url: ${WORKER_SQS_QUEUE_URL:}
+    region: ${AWS_REGION:us-east-2}
+    concurrency: 2
+
+openai:
+  api-key: ${OPENAI_API_KEY:}
+  embedding:
+    model: ${OPENAI_EMBEDDING_MODEL:text-embedding-3-small}

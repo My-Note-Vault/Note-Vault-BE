@@ -2,8 +2,6 @@ package com.example.workspace.document.command.application;
 
 import com.example.workspace.document.command.domain.Document;
 import com.example.workspace.document.command.domain.DocumentDelta;
-import com.example.workspace.document.command.domain.DocumentDeltaArchive;
-import com.example.workspace.document.command.domain.DocumentDeltaArchiveRepository;
 import com.example.workspace.document.command.domain.DocumentDeltaRepository;
 import com.example.workspace.document.command.domain.DocumentRepository;
 import lombok.RequiredArgsConstructor;
@@ -16,15 +14,14 @@ import java.util.NoSuchElementException;
 
 @RequiredArgsConstructor
 @Service
+/** Legacy name: this service only deletes deltas already covered by a durable snapshot. */
 public class DocumentCrdtCompactionService {
 
     private static final long MIN_UPDATE_COUNT = 1_000L;
     private static final long MIN_UPDATE_BYTES = 5L * 1024L * 1024L;
-    private static final int ARCHIVE_RETENTION_DAYS = 30;
 
     private final DocumentRepository documentRepository;
     private final DocumentDeltaRepository documentDeltaRepository;
-    private final DocumentDeltaArchiveRepository documentDeltaArchiveRepository;
 
     @Transactional
     public CompactionBatchResult compactNextBatch(
@@ -35,7 +32,7 @@ public class DocumentCrdtCompactionService {
                 .orElseThrow(() -> new NoSuchElementException("Document를 찾을 수 없습니다"));
 
         long compactedRevision = valueOrZero(document.getCompactedRevision());
-        long targetRevision = valueOrZero(document.getSearchRevision());
+        long targetRevision = valueOrZero(document.getSnapshotRevision());
         if (
                 document.getCrdtState() == null ||
                 document.getCrdtState().length == 0 ||
@@ -63,11 +60,7 @@ public class DocumentCrdtCompactionService {
         }
         validateContinuousBatch(compactedRevision, batch);
 
-        LocalDateTime deleteAfter = now.plusDays(ARCHIVE_RETENTION_DAYS);
-        List<DocumentDeltaArchive> archives = batch.stream()
-                .map(delta -> new DocumentDeltaArchive(delta, now, deleteAfter))
-                .toList();
-        documentDeltaArchiveRepository.saveAllAndFlush(archives);
+        // Only deltas already represented in the durable snapshot can be deleted.
         documentDeltaRepository.deleteAllInBatch(batch);
 
         long batchEndRevision = batch.get(batch.size() - 1).getRevision();
@@ -75,11 +68,6 @@ public class DocumentCrdtCompactionService {
         documentRepository.save(document);
 
         return new CompactionBatchResult(true, batchEndRevision < targetRevision);
-    }
-
-    @Transactional
-    public int purgeExpiredArchives(final LocalDateTime now) {
-        return documentDeltaArchiveRepository.deleteExpired(now);
     }
 
     private boolean shouldCompact(

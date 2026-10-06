@@ -139,16 +139,9 @@ public class WorkSpaceEditorWebSocketHandler extends BinaryWebSocketHandler {
             }
 
             if (messageType == MESSAGE_SEARCH_PROJECTION) {
-                SearchProjection projection = decodeSearchProjection(payload);
-                documentCommandService.updateSearchProjection(
-                        memberId,
-                        workSpaceId,
-                        documentId,
-                        persistenceDocumentType(documentType),
-                        projection.revision(),
-                        projection.content(),
-                        projection.crdtState()
-                );
+                // Older tabs may still send projections. The server derives them
+                // from committed deltas; do not save or relay this legacy frame.
+                metricOutcome = "ignored";
                 return;
             }
 
@@ -340,30 +333,6 @@ public class WorkSpaceEditorWebSocketHandler extends BinaryWebSocketHandler {
         return revision;
     }
 
-    private SearchProjection decodeSearchProjection(final byte[] payload) {
-        int[] cursor = {0};
-        if (readVarUint(payload, cursor) != MESSAGE_SEARCH_PROJECTION) {
-            throw new IllegalArgumentException("Invalid search projection message");
-        }
-        long revision = readVarLong(payload, cursor);
-        int length = readVarUint(payload, cursor);
-        if (length < 0 || cursor[0] + length > payload.length) {
-            throw new IllegalArgumentException("Invalid search projection length");
-        }
-        String content = new String(payload, cursor[0], length, StandardCharsets.UTF_8);
-        cursor[0] += length;
-        int stateLength = readVarUint(payload, cursor);
-        if (stateLength < 0 || cursor[0] + stateLength != payload.length) {
-            throw new IllegalArgumentException("Invalid CRDT state length");
-        }
-        byte[] crdtState = Arrays.copyOfRange(
-                payload,
-                cursor[0],
-                cursor[0] + stateLength
-        );
-        return new SearchProjection(revision, content, crdtState);
-    }
-
     private int readVarUint(final byte[] payload, final int[] cursor) {
         int value = 0;
         int shift = 0;
@@ -427,6 +396,4 @@ public class WorkSpaceEditorWebSocketHandler extends BinaryWebSocketHandler {
     private record ClientCrdtUpdate(String clientUpdateId, int insertedCharacterCount, byte[] crdtUpdate) {
     }
 
-    private record SearchProjection(long revision, String content, byte[] crdtState) {
-    }
 }

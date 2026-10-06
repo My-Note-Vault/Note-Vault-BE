@@ -13,7 +13,7 @@ import java.time.LocalDateTime;
 import java.util.Locale;
 import java.util.Objects;
 
-/** Worker read model. Original documents are written only by the API. */
+/** Immutable indexing read model; CRDT worker writes use narrow, revision-checked SQL separately. */
 @Entity(name = "SearchDocumentSource")
 @Table(name = "document")
 @Immutable

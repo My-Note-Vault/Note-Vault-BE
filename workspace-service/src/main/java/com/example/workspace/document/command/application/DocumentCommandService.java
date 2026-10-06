@@ -37,6 +37,7 @@ public class DocumentCommandService {
     private final WorkSpaceRepository workSpaceRepository;
     private final ImageUtils imageUtils;
     private final SearchSyncRecorder searchSyncRecorder;
+    private final DocumentRefreshRequests refreshRequests;
 
     @Transactional
     public Long createDocument(
@@ -201,6 +202,7 @@ public class DocumentCommandService {
                         ));
                     }
                     documentRepository.save(document);
+                    refreshRequests.recordDelta(document);
                     return new CommittedCrdtUpdate(
                             delta.getRevision(),
                             delta.getClientUpdateId(),
@@ -209,36 +211,9 @@ public class DocumentCommandService {
                 });
     }
 
-    @Transactional
-    public boolean updateSearchProjection(
-            final Long memberId,
-            final Long workSpaceId,
-            final Long documentId,
-            final DocumentType type,
-            final Long revision,
-            final String searchContent,
-            final byte[] crdtState
-    ) {
-        Document document = documentRepository.findWithLockByIdAndType(documentId, type)
-                .orElseThrow(() -> new NoSuchElementException(type.notFoundMessage()));
-        validateParticipant(document.getWorkSpaceId(), memberId, type);
-        if (!document.getWorkSpaceId().equals(workSpaceId)) {
-            throw new NoSuchElementException(type.notFoundMessage());
-        }
-
-        String oldSearchContent = document.getSearchContent();
-        boolean updated = document.updateSearchProjection(searchContent, crdtState, revision);
-        if (updated) {
-            imageUtils.deleteRemovedContentImages(oldSearchContent, searchContent);
-            documentRepository.save(document);
-            recordRefresh(document);
-        }
-        return updated;
-    }
-
     private void recordRefresh(Document document) {
         searchSyncRecorder.refreshDocument(document.getId(),
-                Objects.requireNonNullElse(document.getSearchRevision(), 0L));
+                Objects.requireNonNullElse(document.getLatestRevision(), 0L));
     }
 
     private Document findForUpdate(final Long id, final DocumentType type) {

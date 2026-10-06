@@ -180,9 +180,11 @@ public class ContentIndexingTransactions {
                 source.type(), source.sourceId());
         Map<Integer, ContentChunk> sameVersion = new HashMap<>();
         Map<String, ContentChunk> reusable = new HashMap<>();
+        Map<String, List<ContentChunk>> reusableRows = new HashMap<>();
         List<ContentChunk> obsolete = new ArrayList<>();
         for (ContentChunk chunk : existing) {
             if (chunk.getEmbeddingStatus() == EmbeddingStatus.READY
+                    && chunk.getEmbedding() != null
                     && model.equals(chunk.getEmbeddingModel())) {
                 reusable.putIfAbsent(chunk.getContentHash(), chunk);
             }
@@ -192,6 +194,7 @@ public class ContentIndexingTransactions {
                 }
             } else {
                 obsolete.add(chunk);
+                reusableRows.computeIfAbsent(chunk.getContentHash(), ignored -> new ArrayList<>()).add(chunk);
             }
         }
         if (sameVersion.keySet().stream().anyMatch(index -> index < 0 || index >= drafts.size())) {
@@ -211,15 +214,30 @@ public class ContentIndexingTransactions {
                 chunk.retain(source, index);
                 continue;
             }
-            chunk = new ContentChunk(source, index, draft.content(), draft.hash());
+            // Preserve an unchanged chunk's row and vector even when its position/revision changes.
+            List<ContentChunk> candidates = reusableRows.get(draft.hash());
+            if (candidates != null) {
+                for (var iterator = candidates.iterator(); iterator.hasNext();) {
+                    ContentChunk candidate = iterator.next();
+                    if (candidate.getContent().equals(draft.content())) {
+                        chunk = candidate;
+                        iterator.remove();
+                        obsolete.remove(candidate);
+                        chunk.retain(source, index);
+                        break;
+                    }
+                }
+            }
+            boolean newRow = chunk == null;
+            if (newRow) chunk = new ContentChunk(source, index, draft.content(), draft.hash());
             ContentChunk cached = reusable.get(draft.hash());
             if (cached != null && cached.getContent().equals(draft.content())) {
                 chunk.saveEmbedding(cached.getEmbedding(), model);
             }
-            add.add(chunk);
+            if (newRow) add.add(chunk);
         }
         // A source-row lock serializes writers; the unique constraint is the final DB guard.
-        // Same-version rows retain their IDs and positions, avoiding hash-based reordering conflicts.
+        // Only removed/changed content is replaced. Retained rows update revision/position metadata.
         chunks.deleteAllInBatch(obsolete);
         chunks.saveAllAndFlush(add);
     }

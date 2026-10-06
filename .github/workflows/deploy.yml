@@ -13,6 +13,9 @@ on:
       - "workspace-service/**"
       - "knowledge-assistant-service/**"
       - "search-sync/**"
+      - "search-content/**"
+      - "embedding/**"
+      - ".github/workflows/deploy-worker.yml"
       - "build.gradle"
       - "settings.gradle"
       - "gradle.properties"
@@ -27,7 +30,12 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  deploy-worker:
+    uses: ./.github/workflows/deploy-worker.yml
+    secrets: inherit
+
   build-and-deploy:
+    needs: deploy-worker
     runs-on: ubuntu-latest
 
     steps:

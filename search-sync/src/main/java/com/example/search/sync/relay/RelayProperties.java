@@ -13,7 +13,7 @@ import java.time.Duration;
 public record RelayProperties(
         @NotBlank String queueUrl,
         @NotBlank String region,
-        @NotNull @DefaultValue("1s") Duration pollDelay
+        @NotNull @DefaultValue("10s") Duration pollDelay
 ) {
     public RelayProperties {
         if (pollDelay != null && pollDelay.toMillis() < 1) {

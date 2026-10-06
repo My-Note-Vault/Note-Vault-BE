@@ -30,6 +30,11 @@ public interface DocumentRepository extends JpaRepository<Document, Long> {
             @Param("type") DocumentType type
     );
 
+    @Lock(LockModeType.PESSIMISTIC_READ)
+    @Query("select d from Document d where d.workSpaceId = :workSpaceId and d.type = :type")
+    Optional<Document> findWithReadLockByWorkSpaceIdAndType(
+            @Param("workSpaceId") Long workSpaceId, @Param("type") DocumentType type);
+
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("select d from Document d where d.id = :id")
     Optional<Document> findWithWriteLockById(@Param("id") Long id);
@@ -38,7 +43,7 @@ public interface DocumentRepository extends JpaRepository<Document, Long> {
             select d.id
             from Document d
             where d.crdtState is not null
-              and d.searchRevision > coalesce(d.compactedRevision, 0)
+              and d.snapshotRevision > coalesce(d.compactedRevision, 0)
             """)
     List<Long> findCrdtCompactionCandidateIds();
 

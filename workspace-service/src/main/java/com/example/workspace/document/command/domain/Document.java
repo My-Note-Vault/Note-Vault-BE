@@ -31,6 +31,7 @@ import java.util.NoSuchElementException;
         }
 )
 @Entity
+@org.hibernate.annotations.DynamicUpdate
 public class Document extends Auditable {
 
     private static final String DEFAULT_TASK_TITLE = "새 Task";
@@ -73,6 +74,20 @@ public class Document extends Auditable {
     @ColumnDefault("0")
     @Column(name = "search_revision")
     private Long searchRevision = 0L;
+
+    @JsonIgnore
+    @ColumnDefault("0")
+    @Column(name = "snapshot_revision", nullable = false)
+    private Long snapshotRevision = 0L;
+
+    @JsonIgnore
+    @Column(name = "refresh_batch_event_id")
+    private java.util.UUID refreshBatchEventId;
+
+    @JsonIgnore
+    @ColumnDefault("0")
+    @Column(name = "refresh_batch_base_revision", nullable = false)
+    private Long refreshBatchBaseRevision = 0L;
 
     @JsonIgnore
     @ColumnDefault("0")
@@ -194,34 +209,25 @@ public class Document extends Auditable {
         this.parentId = parentId;
     }
 
-    public boolean updateSearchProjection(
-            final String content,
-            final byte[] state,
-            final Long revision
-    ) {
-        long currentRevision = this.searchRevision == null ? 0L : this.searchRevision;
-        long currentLatestRevision = this.latestRevision == null ? 0L : this.latestRevision;
-        if (revision == null || revision <= currentRevision || revision > currentLatestRevision) {
-            return false;
-        }
-        this.searchContent = content;
-        this.searchContentHash = hashSearchContent(content);
-        this.crdtState = state;
-        this.searchRevision = revision;
-        return true;
-    }
-
     public long issueNextRevision() {
         long currentRevision = this.latestRevision == null ? 0L : this.latestRevision;
         this.latestRevision = currentRevision + 1;
         return this.latestRevision;
     }
 
+    public void trackRefreshBatch(java.util.UUID eventId, long baseRevision) {
+        if (eventId == null || baseRevision < 0 || baseRevision >= latestRevision) {
+            throw new IllegalArgumentException("Invalid document refresh batch");
+        }
+        refreshBatchEventId = eventId;
+        refreshBatchBaseRevision = baseRevision;
+    }
+
     public void markCompacted(final long revision, final LocalDateTime compactedAt) {
         long currentCompactedRevision =
                 this.compactedRevision == null ? 0L : this.compactedRevision;
-        long currentSearchRevision = this.searchRevision == null ? 0L : this.searchRevision;
-        if (revision <= currentCompactedRevision || revision > currentSearchRevision) {
+        long currentSnapshotRevision = this.snapshotRevision == null ? 0L : this.snapshotRevision;
+        if (revision <= currentCompactedRevision || revision > currentSnapshotRevision) {
             throw new IllegalArgumentException("Invalid CRDT compaction revision: " + revision);
         }
         this.compactedRevision = revision;

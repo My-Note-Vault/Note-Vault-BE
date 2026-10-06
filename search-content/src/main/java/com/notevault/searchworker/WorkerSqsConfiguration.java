@@ -1,6 +1,5 @@
 package com.notevault.searchworker;
 
-import com.example.search.indexing.SearchContentSync;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
@@ -52,7 +51,7 @@ public class WorkerSqsConfiguration {
 
     @Bean
     SqsMessageConsumer sqsMessageConsumer(SqsClient client, WorkerSqsProperties properties,
-            ObjectMapper mapper, SearchContentSync sync,
+            ObjectMapper mapper, WorkerMessageDispatcher dispatcher,
             @Qualifier("workerVisibilityScheduler") ScheduledExecutorService heartbeat,
             @Value("${openai.api-key:}") String embeddingKey,
             @Value("${openai.embedding.model:text-embedding-3-small}") String embeddingModel,
@@ -64,6 +63,6 @@ public class WorkerSqsConfiguration {
         if (titleBackfill || noteBackfill) {
             throw new IllegalArgumentException("Run backfills with worker.sqs.enabled=false");
         }
-        return new SqsMessageConsumer(client, properties, mapper, sync, heartbeat);
+        return new SqsMessageConsumer(client, properties, mapper, dispatcher, heartbeat);
     }
 }

@@ -14,14 +14,16 @@ import org.springframework.data.jpa.repository.config.EnableJpaRepositories;
 import java.util.Map;
 
 @SpringBootApplication(scanBasePackageClasses = {
-        SearchWorkerApplication.class, ContentChunker.class, OpenAiEmbeddingClient.class
+        SearchWorkerApplication.class, ContentChunker.class, OpenAiEmbeddingClient.class,
+        com.example.search.crdt.WorkerCrdtConfiguration.class
 })
 @EntityScan(basePackageClasses = ContentChunk.class)
 @EnableJpaRepositories(basePackageClasses = ContentChunkRepository.class)
 @EnableJpaAuditing
 public class SearchWorkerApplication {
 
-    public static void main(String[] args) {
+    public static void main(String[] args) throws java.io.IOException {
+        java.nio.file.Files.deleteIfExists(WorkerReadiness.FILE);
         SpringApplication application = new SpringApplication(SearchWorkerApplication.class);
         application.setWebApplicationType(WebApplicationType.NONE);
         application.setDefaultProperties(Map.of("spring.config.name", "application-worker"));

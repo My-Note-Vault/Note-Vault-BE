@@ -40,4 +40,8 @@ public class SearchContentSync {
     }
 
     public enum Result { READY, DELETED }
+
+    public Result delete(ContentSourceType type, Long sourceId) {
+        return deleteMissing(type, sourceId);
+    }
 }

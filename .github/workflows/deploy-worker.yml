@@ -2,18 +2,7 @@ name: Deploy Worker
 
 on:
   workflow_dispatch:
-  push:
-    branches: ["main"]
-    paths:
-      - "search-content/**"
-      - "embedding/**"
-      - "build.gradle"
-      - "settings.gradle"
-      - "gradle.properties"
-      - "gradle/**"
-      - "gradlew"
-      - ".dockerignore"
-      - ".github/workflows/deploy-worker.yml"
+  workflow_call:
 
 concurrency:
   group: production-worker-deploy
@@ -43,6 +32,20 @@ jobs:
         with:
           distribution: temurin
           java-version: "21"
+
+      - name: Set up Node for the embedded Yjs bundle
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: search-content/crdt-js/package-lock.json
+
+      - name: Build embedded Yjs runtime
+        working-directory: search-content/crdt-js
+        run: |
+          npm ci --ignore-scripts --no-audit --no-fund
+          npm run build
+          git diff --exit-code -- ../src/main/resources/crdt/
 
       - name: Build Worker
         shell: bash

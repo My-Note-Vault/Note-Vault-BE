@@ -1,0 +1,7 @@
+{
+  "baseState": "AQEBAAQBB2NvbnRlbnQOIyDrrLjshJwKSGVsbG8A",
+  "updates": [
+    "AQEBCoQBCSLslYjrhZUg8J+RiwpgYGBqYXZhCmludCBuID0gMTsKYGBgAQEBBQU="
+  ],
+  "expectedContent": "# 문서\n안녕 👋\n```java\nint n = 1;\n```"
+}

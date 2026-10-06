@@ -19,7 +19,7 @@ public class OutboxRelay {
     private final RelayMetrics metrics;
     private volatile boolean stopping;
 
-    @Scheduled(fixedDelayString = "${search.sync.relay.poll-delay:PT1S}", scheduler = "searchSyncRelayScheduler")
+    @Scheduled(fixedDelayString = "${search.sync.relay.poll-delay:PT10S}", scheduler = "searchSyncRelayScheduler")
     public void poll() {
         runSafely("poll", this::publishPending);
     }

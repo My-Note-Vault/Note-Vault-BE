@@ -37,7 +37,7 @@ public class SearchSyncOutbox implements Persistable<UUID> {
     private Long sourceId;
 
     @JdbcTypeCode(SqlTypes.JSON)
-    @Column(nullable = false, updatable = false, columnDefinition = "jsonb")
+    @Column(nullable = false, columnDefinition = "jsonb")
     private String payload;
 
     @Enumerated(EnumType.STRING)
@@ -69,7 +69,12 @@ public class SearchSyncOutbox implements Persistable<UUID> {
     private boolean newEntity = true;
 
     public static SearchSyncOutbox pending(SearchSyncEvent event, String payload) {
+        return scheduled(event, payload, event.occurredAt());
+    }
+
+    public static SearchSyncOutbox scheduled(SearchSyncEvent event, String payload, Instant publishAt) {
         Objects.requireNonNull(event, "event");
+        Objects.requireNonNull(publishAt, "publishAt");
         if (payload == null || payload.isBlank()) {
             throw new IllegalArgumentException("payload must not be blank");
         }
@@ -80,8 +85,20 @@ public class SearchSyncOutbox implements Persistable<UUID> {
         row.payload = payload;
         row.status = SearchSyncOutboxStatus.PENDING;
         row.createdAt = event.occurredAt();
-        row.nextAttemptAt = event.occurredAt();
+        row.nextAttemptAt = publishAt;
         return row;
+    }
+
+    /** Only unclaimed, not-yet-due batches may change; retries retain their original payload. */
+    public boolean coalesce(String payload, boolean publishNow, Instant now) {
+        if (status != SearchSyncOutboxStatus.PENDING || attemptCount != 0 || !nextAttemptAt.isAfter(now)) {
+            return false;
+        }
+        if (payload == null || payload.isBlank()) throw new IllegalArgumentException("payload must not be blank");
+        this.payload = payload;
+        if (publishNow) nextAttemptAt = now;
+        // Appending updates never postpones the original one-minute deadline.
+        return true;
     }
 
     public OutboxMessage claim(Instant now) {

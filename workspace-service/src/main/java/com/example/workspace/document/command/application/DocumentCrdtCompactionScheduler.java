@@ -3,15 +3,17 @@ package com.example.workspace.document.command.application;
 import com.example.workspace.document.command.domain.DocumentRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
-import java.time.LocalDateTime;
 import java.util.List;
 
 @Slf4j
 @RequiredArgsConstructor
 @Component
+@ConditionalOnProperty(prefix = "workspace.crdt.compaction", name = "enabled",
+        havingValue = "true", matchIfMissing = true)
 public class DocumentCrdtCompactionScheduler {
 
     private static final int MAX_BATCHES_PER_DOCUMENT = 20;
@@ -27,10 +29,6 @@ public class DocumentCrdtCompactionScheduler {
         List<Long> candidateIds = documentRepository.findCrdtCompactionCandidateIds();
         for (Long documentId : candidateIds) {
             compactDocument(documentId);
-        }
-        int purged = compactionService.purgeExpiredArchives(LocalDateTime.now());
-        if (purged > 0) {
-            log.info("Purged {} expired CRDT delta archives", purged);
         }
     }
 
