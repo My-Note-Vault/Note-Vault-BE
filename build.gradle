@@ -1,3 +1,8 @@
+import org.gradle.api.services.BuildService
+import org.gradle.api.services.BuildServiceParameters
+import org.gradle.api.tasks.testing.TestResult
+import java.util.concurrent.ConcurrentHashMap
+
 plugins {
     id 'org.springframework.boot' version '3.5.5'
     id 'io.spring.dependency-management' version '1.1.7'
@@ -49,6 +54,8 @@ dependencies {
     // Test
     testImplementation 'org.springframework.boot:spring-boot-starter-test'
     testImplementation 'com.h2database:h2'
+    testImplementation 'org.springframework.boot:spring-boot-starter-data-redis'
+    testImplementation 'software.amazon.awssdk:s3:2.25.67'
     testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
 }
 
@@ -72,6 +79,44 @@ subprojects {
 test {
     useJUnitPlatform()
 }
+
+// Only count suites executed in this build; cached and NO-SOURCE tasks have no new results.
+abstract class TestResultsSummary implements BuildService<BuildServiceParameters.None>, AutoCloseable {
+    private final Map<String, Map<String, Long>> results = new ConcurrentHashMap<>()
+
+    void record(String taskPath, TestResult result) {
+        results.put(taskPath, [total: result.testCount, passed: result.successfulTestCount,
+                               failed: result.failedTestCount, skipped: result.skippedTestCount])
+    }
+
+    @Override
+    void close() {
+        if (results.isEmpty()) return
+        println '\n테스트 결과 (이번 실행)'
+        results.sort().each { taskPath, counts ->
+            println "${taskPath}: 전체 ${counts.total}, 성공 ${counts.passed}, 실패 ${counts.failed}, 건너뜀 ${counts.skipped}"
+        }
+        long total = results.values().sum(0L) { it.total }
+        long passed = results.values().sum(0L) { it.passed }
+        long failed = results.values().sum(0L) { it.failed }
+        long skipped = results.values().sum(0L) { it.skipped }
+        println "전체 합계: ${total}개 | 성공: ${passed}개 | 실패: ${failed}개 | 건너뜀: ${skipped}개"
+    }
+}
+
+def testResultsSummary = gradle.sharedServices.registerIfAbsent('testResultsSummary', TestResultsSummary) {}
+allprojects {
+    tasks.withType(Test).configureEach {
+        usesService(testResultsSummary)
+        def testTaskPath = path
+        afterSuite { descriptor, result ->
+            if (descriptor.parent == null) {
+                testResultsSummary.get().record(testTaskPath, result)
+            }
+        }
+    }
+}
+
 tasks.bootJar { enabled = true }
 tasks.jar { enabled = false }
 

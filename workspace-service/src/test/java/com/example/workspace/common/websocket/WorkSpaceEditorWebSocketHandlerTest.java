@@ -1,6 +1,8 @@
 package com.example.workspace.common.websocket;
 
 import com.example.workspace.common.redis.RedisPublisher;
+import com.example.workspace.document.command.application.DocumentCommandService;
+import com.example.workspace.document.query.DocumentQueryService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -13,6 +15,7 @@ import org.springframework.web.socket.CloseStatus;
 import org.springframework.web.socket.WebSocketSession;
 
 import java.util.Map;
+import java.util.HashMap;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.verify;
@@ -30,21 +33,28 @@ class WorkSpaceEditorWebSocketHandlerTest {
     @Mock
     private WebSocketSession session;
 
+    @Mock private DocumentCommandService documentCommandService;
+    @Mock private DocumentQueryService documentQueryService;
+    @Mock private WebSocketMetrics webSocketMetrics;
+
     private WorkSpaceEditorWebSocketHandler handler;
 
     @BeforeEach
     void setUp() {
-        handler = new WorkSpaceEditorWebSocketHandler(sessionRegistry, redisPublisher);
-        given(session.getAttributes()).willReturn(Map.of(
+        handler = new WorkSpaceEditorWebSocketHandler(sessionRegistry, redisPublisher,
+                documentCommandService, documentQueryService, webSocketMetrics);
+        given(session.getAttributes()).willReturn(new HashMap<>(Map.of(
                 CollaborationSessionAttributes.WORKSPACE_ID, 10L,
                 CollaborationSessionAttributes.DOCUMENT_TYPE, "task",
-                CollaborationSessionAttributes.DOCUMENT_ID, 101L
-        ));
+                CollaborationSessionAttributes.DOCUMENT_ID, 101L,
+                CollaborationSessionAttributes.PERSISTENCE_DOCUMENT_ID, 101L,
+                CollaborationSessionAttributes.MEMBER_ID, 7L
+        )));
     }
 
     @Test
     @DisplayName("연결이 열리면 같은 문서 세션 그룹에 등록한다")
-    void afterConnectionEstablished_addsSessionToRegistry() {
+    void afterConnectionEstablished_addsSessionToRegistry() throws Exception {
         handler.afterConnectionEstablished(session);
 
         verify(sessionRegistry).add(new SessionKey("task", 101L), session);

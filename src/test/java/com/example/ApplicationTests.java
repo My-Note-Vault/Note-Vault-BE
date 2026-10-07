@@ -11,8 +11,13 @@ import com.example.common.api.SnapshotClient;
 import com.example.common.file.image.ImageUtils;
 import com.example.platformservice.auth.feignclient.GoogleTokenClient;
 import com.example.platformservice.auth.feignclient.GoogleUserClient;
+import com.example.search.infrastructure.OpenAiSearchClient;
+import com.example.platformservice.draw.application.DailyDrawScheduler;
+import org.springframework.data.redis.listener.RedisMessageListenerContainer;
+import software.amazon.awssdk.services.s3.S3Client;
+import software.amazon.awssdk.services.s3.presigner.S3Presigner;
 
-@SpringBootTest
+@SpringBootTest(properties = "spring.config.location=classpath:application-test.yaml")
 @ActiveProfiles("test")
 class ApplicationTests {
 
@@ -31,8 +36,23 @@ class ApplicationTests {
     @MockitoBean
     private ImageUtils imageUtils;
 
+    @MockitoBean
+    private OpenAiSearchClient openAiSearchClient;
+
+    @MockitoBean
+    private S3Client s3Client;
+
+    @MockitoBean
+    private S3Presigner s3Presigner;
+
+    @MockitoBean
+    private RedisMessageListenerContainer redisMessageListenerContainer;
+
+    @MockitoBean
+    private DailyDrawScheduler dailyDrawScheduler;
+
     @Test
-    @DisplayName("애플리케이션 컨텍스트가 정상적으로 로드된다")
+    @DisplayName("외부 AI·S3·Redis 호출과 예약 작업 없이 애플리케이션 컨텍스트가 로드된다")
     void contextLoads() {
     }
 

@@ -1,8 +1,5 @@
 package com.example.workspace.common.websocket;
 
-import com.example.common.jwt.JwtService;
-import com.example.workspace.workspace.command.domain.WorkSpace;
-import com.example.workspace.workspace.query.WorkSpaceQueryService;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -16,36 +13,33 @@ import org.springframework.web.socket.WebSocketHandler;
 
 import java.util.HashMap;
 import java.util.Map;
-import java.util.NoSuchElementException;
+import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.BDDMockito.given;
-import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
 
 @ExtendWith(MockitoExtension.class)
 class JwtHandshakeInterceptorTest {
 
     @Mock
-    private JwtService jwtService;
+    private WebSocketTicketStore ticketStore;
 
     @Mock
-    private WorkSpaceQueryService workSpaceQueryService;
+    private WebSocketMetrics metrics;
 
     @Mock
     private WebSocketHandler webSocketHandler;
 
     @Test
-    @DisplayName("유효한 access token과 workspace 참여자면 세션 메타데이터를 저장한다")
+    @DisplayName("유효한 일회용 ticket의 문서 경로가 일치하면 세션 메타데이터를 저장한다")
     void beforeHandshake_withValidParticipant_storesAttributes() throws Exception {
-        JwtHandshakeInterceptor interceptor = new JwtHandshakeInterceptor(jwtService, workSpaceQueryService);
+        JwtHandshakeInterceptor interceptor = new JwtHandshakeInterceptor(ticketStore, metrics);
         MockHttpServletRequest servletRequest = request("/ws/workspaces/10/task/101", "access-token");
         MockHttpServletResponse servletResponse = new MockHttpServletResponse();
         Map<String, Object> attributes = new HashMap<>();
 
-        given(jwtService.isInvalidToken("access-token")).willReturn(false);
-        given(jwtService.isAccessToken("access-token")).willReturn(true);
-        given(jwtService.getMemberId("access-token")).willReturn(7L);
-        given(workSpaceQueryService.findWorkSpaceById(7L, 10L)).willReturn(mock(WorkSpace.class));
+        given(ticketStore.consume("access-token")).willReturn(Optional.of(new WebSocketTicket(7L, 10L, "task", 101L)));
 
         boolean result = interceptor.beforeHandshake(
                 new ServletServerHttpRequest(servletRequest),
@@ -62,13 +56,13 @@ class JwtHandshakeInterceptorTest {
     }
 
     @Test
-    @DisplayName("유효하지 않은 토큰이면 401로 핸드셰이크를 거부한다")
+    @DisplayName("만료되거나 이미 소비된 ticket이면 401로 핸드셰이크를 거부한다")
     void beforeHandshake_withInvalidToken_rejectsRequest() throws Exception {
-        JwtHandshakeInterceptor interceptor = new JwtHandshakeInterceptor(jwtService, workSpaceQueryService);
+        JwtHandshakeInterceptor interceptor = new JwtHandshakeInterceptor(ticketStore, metrics);
         MockHttpServletRequest servletRequest = request("/ws/workspaces/10/task/101", "invalid-token");
         MockHttpServletResponse servletResponse = new MockHttpServletResponse();
 
-        given(jwtService.isInvalidToken("invalid-token")).willReturn(true);
+        given(ticketStore.consume("invalid-token")).willReturn(Optional.empty());
 
         boolean result = interceptor.beforeHandshake(
                 new ServletServerHttpRequest(servletRequest),
@@ -79,20 +73,17 @@ class JwtHandshakeInterceptorTest {
 
         assertThat(result).isFalse();
         assertThat(servletResponse.getStatus()).isEqualTo(401);
+        verify(metrics).connectionFailure("handshake", "invalid_ticket");
     }
 
     @Test
-    @DisplayName("워크스페이스 참여자가 아니면 403으로 핸드셰이크를 거부한다")
+    @DisplayName("ticket과 다른 문서 경로로 연결하면 403으로 핸드셰이크를 거부한다")
     void beforeHandshake_withoutWorkspaceMembership_rejectsRequest() throws Exception {
-        JwtHandshakeInterceptor interceptor = new JwtHandshakeInterceptor(jwtService, workSpaceQueryService);
+        JwtHandshakeInterceptor interceptor = new JwtHandshakeInterceptor(ticketStore, metrics);
         MockHttpServletRequest servletRequest = request("/ws/workspaces/10/task/101", "access-token");
         MockHttpServletResponse servletResponse = new MockHttpServletResponse();
 
-        given(jwtService.isInvalidToken("access-token")).willReturn(false);
-        given(jwtService.isAccessToken("access-token")).willReturn(true);
-        given(jwtService.getMemberId("access-token")).willReturn(7L);
-        given(workSpaceQueryService.findWorkSpaceById(7L, 10L))
-                .willThrow(new NoSuchElementException("참여자가 아닙니다"));
+        given(ticketStore.consume("access-token")).willReturn(Optional.of(new WebSocketTicket(7L, 10L, "task", 999L)));
 
         boolean result = interceptor.beforeHandshake(
                 new ServletServerHttpRequest(servletRequest),
@@ -103,11 +94,12 @@ class JwtHandshakeInterceptorTest {
 
         assertThat(result).isFalse();
         assertThat(servletResponse.getStatus()).isEqualTo(403);
+        verify(metrics).connectionFailure("handshake", "ticket_mismatch");
     }
 
     private MockHttpServletRequest request(final String requestUri, final String token) {
         MockHttpServletRequest request = new MockHttpServletRequest("GET", requestUri);
-        request.setParameter("token", token);
+        request.setParameter("ticket", token);
         return request;
     }
 }

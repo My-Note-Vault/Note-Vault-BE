@@ -1,6 +1,10 @@
 package com.example.workspace.workspace.command.application;
 
 import com.example.common.file.image.ImageUtils;
+import com.example.search.sync.SearchSyncRecorder;
+import com.example.workspace.document.command.domain.Document;
+import com.example.workspace.document.command.domain.DocumentRepository;
+import org.springframework.test.util.ReflectionTestUtils;
 import com.example.workspace.workspace.command.domain.Invitation;
 import com.example.workspace.workspace.command.domain.InvitationRepository;
 import com.example.workspace.workspace.command.domain.Participant;
@@ -50,6 +54,12 @@ class WorkSpaceCommandServiceTest {
     @Mock
     private ImageUtils imageUtils;
 
+    @Mock
+    private DocumentRepository documentRepository;
+
+    @Mock
+    private SearchSyncRecorder searchSyncRecorder;
+
     @Nested
     @DisplayName("createWorkSpace 메소드는")
     class CreateWorkSpaceTest {
@@ -57,6 +67,16 @@ class WorkSpaceCommandServiceTest {
         @Test
         @DisplayName("WorkSpace와 생성자 Participant를 저장한다")
         void createWorkSpace_success() {
+            given(workSpaceRepository.save(any(WorkSpace.class))).willAnswer(invocation -> {
+                WorkSpace saved = invocation.getArgument(0);
+                ReflectionTestUtils.setField(saved, "id", 2L);
+                return saved;
+            });
+            given(documentRepository.save(any(Document.class))).willAnswer(invocation -> {
+                Document saved = invocation.getArgument(0);
+                ReflectionTestUtils.setField(saved, "id", 3L);
+                return saved;
+            });
             workSpaceCommandService.createWorkSpace(1L, "워크스페이스", "content", true);
 
             ArgumentCaptor<WorkSpace> workSpaceCaptor = ArgumentCaptor.forClass(WorkSpace.class);
@@ -72,6 +92,7 @@ class WorkSpaceCommandServiceTest {
             assertThat(savedWorkSpace.getIsPublic()).isTrue();
             assertThat(savedParticipant.getMemberId()).isEqualTo(1L);
             assertThat(savedParticipant.getWorkSpaceId()).isEqualTo(savedWorkSpace.getId());
+            verify(searchSyncRecorder).refreshDocument(3L, 0L);
         }
     }
 
@@ -119,8 +140,8 @@ class WorkSpaceCommandServiceTest {
 
             workSpaceCommandService.updateParticipants(1L, 2L, List.of(3L, 4L), List.of(5L));
 
-            ArgumentCaptor<List<Participant>> addCaptor = ArgumentCaptor.forClass(List.class);
-            ArgumentCaptor<List<Participant>> removeCaptor = ArgumentCaptor.forClass(List.class);
+            ArgumentCaptor<List<Participant>> addCaptor = ArgumentCaptor.captor();
+            ArgumentCaptor<List<Participant>> removeCaptor = ArgumentCaptor.captor();
             verify(participantRepository).saveAll(addCaptor.capture());
             verify(participantRepository).deleteAll(removeCaptor.capture());
 
@@ -184,19 +205,26 @@ class WorkSpaceCommandServiceTest {
         @DisplayName("생성자가 WorkSpace를 삭제하면 본문 이미지를 모두 정리하고 삭제한다")
         void deleteWorkSpace_success() {
             WorkSpace workSpace = new WorkSpace(1L, "워크스페이스", "content", false);
-            given(workSpaceRepository.findById(2L)).willReturn(Optional.of(workSpace));
+            given(workSpaceRepository.findWithWriteLockById(2L)).willReturn(Optional.of(workSpace));
+            Document document = Document.note(2L, null, 1L);
+            ReflectionTestUtils.setField(document, "id", 3L);
+            given(documentRepository.findAllByWorkSpaceIdOrderByIdAsc(2L)).willReturn(List.of(document));
 
             workSpaceCommandService.deleteWorkSpace(1L, 2L);
 
             verify(imageUtils).deleteAllContentImages("content");
             verify(workSpaceRepository).delete(workSpace);
+            verify(searchSyncRecorder).deleteDocument(3L);
+            verify(documentRepository).deleteAll(List.of(document));
+            verify(participantRepository).deleteAllByWorkSpaceId(2L);
+            verify(invitationRepository).deleteAllByWorkSpaceId(2L);
         }
 
         @Test
         @DisplayName("생성자가 아니면 삭제할 수 없다")
         void deleteWorkSpace_forbidden() {
             WorkSpace workSpace = new WorkSpace(1L, "워크스페이스", "content", false);
-            given(workSpaceRepository.findById(2L)).willReturn(Optional.of(workSpace));
+            given(workSpaceRepository.findWithWriteLockById(2L)).willReturn(Optional.of(workSpace));
 
             assertThatThrownBy(() -> workSpaceCommandService.deleteWorkSpace(9L, 2L))
                     .isInstanceOf(IllegalArgumentException.class)
