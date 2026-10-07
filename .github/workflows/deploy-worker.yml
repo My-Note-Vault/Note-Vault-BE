@@ -21,14 +21,18 @@ concurrency:
   group: production-worker-deploy
   cancel-in-progress: false
 
+env:
+  DOCKER_BUILD_SUMMARY: "false"
+  DOCKER_BUILD_RECORD_UPLOAD: "false"
+
 jobs:
-  build-and-deploy:
+  build:
+    name: Worker Build & Push
     runs-on: ubuntu-latest
     env:
       DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
       TAG: ${{ github.sha }}
       WORKER_PRIVATE_IP: ${{ secrets.WORKER_PRIVATE_IP }}
-      WORKER_SSH_KEY_PATH: ${{ vars.WORKER_SSH_KEY_PATH }}
 
     steps:
       - name: Check Worker host
@@ -48,6 +52,8 @@ jobs:
 
       - name: Set up Gradle cache
         uses: gradle/actions/setup-gradle@v4
+        with:
+          add-job-summary: never
 
       - name: Set up Node for the embedded Yjs bundle
         uses: actions/setup-node@v4
@@ -91,6 +97,16 @@ jobs:
           cache-from: type=gha,scope=note-vault-worker,version=2
           cache-to: type=gha,scope=note-vault-worker,version=2,mode=min
 
+  deploy:
+    name: Worker Deploy
+    needs: build
+    runs-on: ubuntu-latest
+    env:
+      DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
+      TAG: ${{ github.sha }}
+      WORKER_PRIVATE_IP: ${{ secrets.WORKER_PRIVATE_IP }}
+      WORKER_SSH_KEY_PATH: ${{ vars.WORKER_SSH_KEY_PATH }}
+    steps:
       - name: Deploy Worker via WEB
         uses: appleboy/ssh-action@v1
         with:

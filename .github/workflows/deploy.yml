@@ -28,8 +28,13 @@ concurrency:
   group: production-api-deploy
   cancel-in-progress: false
 
+env:
+  DOCKER_BUILD_SUMMARY: "false"
+  DOCKER_BUILD_RECORD_UPLOAD: "false"
+
 jobs:
-  build-and-deploy:
+  build:
+    name: API Build & Push
     runs-on: ubuntu-latest
 
     steps:
@@ -44,6 +49,8 @@ jobs:
 
       - name: Set up Gradle cache
         uses: gradle/actions/setup-gradle@v4
+        with:
+          add-job-summary: never
 
       - name: Build (bootJar)
         shell: bash
@@ -73,6 +80,11 @@ jobs:
           cache-from: type=gha,scope=note-vault-api,version=2
           cache-to: type=gha,scope=note-vault-api,version=2,mode=min
 
+  deploy:
+    name: API Deploy
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
       - name: Deploy via Web EC2
         uses: appleboy/ssh-action@v1
         with:
