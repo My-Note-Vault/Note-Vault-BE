@@ -1,12 +1,6 @@
-.env
-.env.*
-application*.yml
-application*.yaml
-
-
-node_modules/
-
-.git
-.gitignore
-
-.DS_Store
+# Images only need the Dockerfiles and the prebuilt application JARs.
+**
+!Dockerfile
+!build/libs/note-0.0.1-SNAPSHOT.jar
+!search-content/Dockerfile
+!search-content/build/libs/search-content.jar
