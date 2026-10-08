@@ -33,6 +33,7 @@ dependencies {
     implementation project(":common")
     implementation project(":platform-api")
     implementation project(":search-sync")
+    implementation project(":knowledge-assistant-service")
 
     // OpenFeign
     implementation 'org.springframework.cloud:spring-cloud-starter-openfeign'
