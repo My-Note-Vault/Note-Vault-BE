@@ -7,6 +7,7 @@ import com.example.workspace.document.command.domain.Document;
 import com.example.workspace.document.query.DocumentQueryService;
 import com.example.workspace.document.ui.request.CreateDocumentRequest;
 import com.example.workspace.document.ui.request.EditDocumentRequest;
+import com.example.workspace.document.ui.request.MoveDocumentsRequest;
 import com.example.workspace.document.ui.response.CollaborationBootstrapResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.CacheControl;
@@ -96,6 +97,15 @@ public class DocumentController {
                 request.getEndDateTime(),
                 request.getIsPublic()
         );
+        return ResponseEntity.noContent().build();
+    }
+
+    @PatchMapping("/move")
+    public ResponseEntity<Void> moveDocuments(
+            @RequestBody final MoveDocumentsRequest request,
+            @AuthMemberId final Long memberId
+    ) {
+        documentCommandService.moveDocuments(memberId, request.workSpaceId(), request.documentIds(), request.parentId());
         return ResponseEntity.noContent().build();
     }
 

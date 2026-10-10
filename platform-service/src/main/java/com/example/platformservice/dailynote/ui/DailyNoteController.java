@@ -7,6 +7,7 @@ import com.example.platformservice.dailynote.application.request.DeletePlanReque
 import com.example.platformservice.dailynote.application.request.EditDailyNoteRequest;
 import com.example.platformservice.dailynote.application.request.EditPlanRequest;
 import com.example.platformservice.dailynote.application.request.MoveDailyNoteRequest;
+import com.example.platformservice.dailynote.application.request.MoveDailyNotesRequest;
 import com.example.platformservice.dailynote.application.response.DailyNoteDetailResponse;
 import com.example.platformservice.dailynote.application.response.DailyNoteListResponse;
 import com.example.platformservice.dailynote.application.response.EditDailyNoteResponse;
@@ -52,6 +53,15 @@ public class DailyNoteController {
     @GetMapping("/all")
     public ResponseEntity<DailyNoteListResponse> findAllDailyNotes(@AuthMemberId final Long authorId) {
         return ResponseEntity.ok(dailyNoteService.findAllDailyNotesByAuthorId(authorId));
+    }
+
+    @PatchMapping("/move")
+    public ResponseEntity<Void> moveDailyNotes(
+            @RequestBody final MoveDailyNotesRequest request,
+            @AuthMemberId final Long memberId
+    ) {
+        dailyNoteService.moveDailyNotes(memberId, request.dailyNoteIds(), request.folderId());
+        return ResponseEntity.noContent().build();
     }
 
     @PatchMapping("/{dailyNoteId}/folder")

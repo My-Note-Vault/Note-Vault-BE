@@ -23,6 +23,12 @@ import java.time.LocalDate;
 import java.time.ZoneId;
 import java.util.NoSuchElementException;
 import java.util.Objects;
+import java.util.List;
+import java.util.Set;
+import java.util.HashSet;
+import java.util.Map;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
 @RequiredArgsConstructor
 @Service
@@ -118,6 +124,58 @@ public class DocumentCommandService {
         if (!Objects.equals(oldTitle, document.getTitle())) {
             recordRefresh(document);
         }
+    }
+
+    @Transactional
+    public void moveDocuments(
+            final Long memberId,
+            final Long workSpaceId,
+            final List<Long> documentIds,
+            final Long parentId
+    ) {
+        if (workSpaceId == null || documentIds == null || documentIds.isEmpty()
+                || documentIds.stream().anyMatch(Objects::isNull)) {
+            throw new IllegalArgumentException("이동할 문서와 Workspace 를 지정해야 합니다");
+        }
+        validateParticipant(workSpaceId, memberId, DocumentType.NOTE);
+        workSpaceRepository.findWithWriteLockById(workSpaceId)
+                .orElseThrow(() -> new NoSuchElementException("WorkSpace 를 찾을 수 없습니다"));
+
+        // Lock the hierarchy so concurrent moves cannot create a cycle between validation and save.
+        Map<Long, Document> documents = documentRepository.findAllWithWriteLockByWorkSpaceId(workSpaceId)
+                .stream().collect(Collectors.toMap(Document::getId, Function.identity()));
+        Set<Long> selected = new HashSet<>(documentIds);
+        for (Long id : selected) {
+            Document document = documents.get(id);
+            if (document == null || document.getType() == DocumentType.WORKSPACE_HOME) {
+                throw new IllegalArgumentException("이 Workspace 의 Note 와 Task 만 이동할 수 있습니다");
+            }
+        }
+        if (parentId != null) {
+            Document parent = documents.get(parentId);
+            if (parent == null || parent.getType() == DocumentType.WORKSPACE_HOME) {
+                throw new IllegalArgumentException("이 Workspace 안의 이동 위치를 선택해야 합니다");
+            }
+            Set<Long> visited = new HashSet<>();
+            while (parent != null) {
+                if (selected.contains(parent.getId()) || !visited.add(parent.getId())) {
+                    throw new IllegalArgumentException("문서를 자기 자신이나 하위 문서 아래로 이동할 수 없습니다");
+                }
+                parent = documents.get(parent.getParentId());
+            }
+        }
+        // Resolve roots before changing parents; selected descendants stay with their selected ancestor.
+        List<Document> roots = selected.stream().map(documents::get).filter(document -> {
+            Long ancestorId = document.getParentId();
+            Set<Long> visited = new HashSet<>();
+            while (ancestorId != null && visited.add(ancestorId)) {
+                if (selected.contains(ancestorId)) return false;
+                Document ancestor = documents.get(ancestorId);
+                ancestorId = ancestor == null ? null : ancestor.getParentId();
+            }
+            return true;
+        }).toList();
+        roots.forEach(document -> document.reparentTo(parentId));
     }
 
     @Transactional

@@ -37,7 +37,8 @@ public class DailyNoteFolderService {
 
     @Transactional
     public void delete(final Long authorId, final Long folderId) {
-        DailyNoteFolder folder = findOwnedFolder(authorId, folderId);
+        DailyNoteFolder folder = folderRepository.findWithWriteLockByIdAndAuthorId(folderId, authorId)
+                .orElseThrow(() -> new NoSuchElementException("일치하는 DailyNote 폴더가 없습니다"));
         dailyNoteRepository.findAllByAuthorIdAndFolderId(authorId, folderId)
                 .forEach(note -> note.moveToFolder(null));
         folderRepository.delete(folder);

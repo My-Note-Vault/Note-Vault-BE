@@ -245,6 +245,23 @@ public class DailyNoteService {
         dailyNote.moveToFolder(folderId);
     }
 
+    @Transactional
+    public void moveDailyNotes(final Long authorId, final List<Long> dailyNoteIds, final Long folderId) {
+        if (dailyNoteIds == null || dailyNoteIds.isEmpty() || dailyNoteIds.stream().anyMatch(Objects::isNull)) {
+            throw new IllegalArgumentException("이동할 DailyNote 를 선택해야 합니다");
+        }
+        if (folderId != null) {
+            dailyNoteFolderRepository.findWithWriteLockByIdAndAuthorId(folderId, authorId)
+                    .orElseThrow(() -> new NoSuchElementException("일치하는 DailyNote 폴더가 없습니다"));
+        }
+        List<DailyNote> notes = dailyNoteIds.stream().distinct().sorted().map(id ->
+                dailyNoteRepository.findWithWriteLockById(id)
+                        .filter(note -> note.getAuthorId().equals(authorId))
+                        .orElseThrow(() -> new NoSuchElementException(NO_DAILY_NOTE_MESSAGE))
+        ).toList();
+        notes.forEach(note -> note.moveToFolder(folderId));
+    }
+
     private void recordPlanRefreshes(List<DailyNotePlanRepository.SearchTarget> targets) {
         targets.forEach(target -> searchSyncRecorder.refreshDailyNote(
                 target.getDailyNoteId(), target.getContentRevision()));

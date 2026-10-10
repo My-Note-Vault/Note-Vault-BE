@@ -57,6 +57,10 @@ public interface DocumentRepository extends JpaRepository<Document, Long> {
 
     List<Document> findAllByWorkSpaceIdOrderByIdAsc(Long workSpaceId);
 
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("select d from Document d where d.workSpaceId = :workSpaceId order by d.id")
+    List<Document> findAllWithWriteLockByWorkSpaceId(@Param("workSpaceId") Long workSpaceId);
+
     @Query("""
             select d
             from Document d
