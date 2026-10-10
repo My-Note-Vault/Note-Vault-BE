@@ -19,6 +19,17 @@ dependencies {
     runtimeOnly 'org.postgresql:postgresql'
     compileOnly 'org.projectlombok:lombok'
     annotationProcessor 'org.projectlombok:lombok'
+    testImplementation 'org.springframework.boot:spring-boot-starter-test'
+    testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+}
+
+tasks.named('test') {
+    useJUnitPlatform()
+}
+
+// Exercise the actual profile configuration without importing unrelated application settings.
+tasks.named('processTestResources') {
+    from(rootProject.file('src/main/resources/application-chat.yaml'))
 }
 
 tasks.bootJar { enabled = false }

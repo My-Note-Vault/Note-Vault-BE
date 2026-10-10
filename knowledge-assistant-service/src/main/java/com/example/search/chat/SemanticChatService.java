@@ -1,5 +1,6 @@
 package com.example.search.chat;
 
+import com.example.search.chat.policy.ChatPolicy;
 import com.example.search.retrieval.SearchEvidence;
 import com.example.search.retrieval.HybridSearch;
 import com.example.search.infrastructure.OpenAiSearchClient;
@@ -30,16 +31,12 @@ public class SemanticChatService {
     }
 
     public ChatPreparation prepare(Long memberId, String question) {
-        if (question == null || question.isBlank() || question.length() > 4000) {
-            throw new IllegalArgumentException("질문은 1자 이상 4000자 이하여야 합니다.");
-        }
-
-        String normalizedQuestion = question.trim();
+        String normalizedQuestion = ChatPolicy.normalizeQuestion(question);
         List<SearchEvidence> found = search.search(memberId, normalizedQuestion,
                 keywordExtractor.extract(normalizedQuestion), openAi.embeddingModel(),
                 openAi.embedQuestion(normalizedQuestion), topK);
         if (found.isEmpty()) {
-            return new ChatPreparation(question.trim(), "", List.of());
+            return new ChatPreparation(normalizedQuestion, "", List.of());
         }
 
         StringBuilder context = new StringBuilder();

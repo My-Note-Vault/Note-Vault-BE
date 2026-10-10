@@ -1,26 +1,38 @@
 package com.example.search.infrastructure;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
+import org.springframework.http.client.JdkClientHttpRequestFactory;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
 
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
+import java.net.http.HttpClient;
 import java.nio.charset.StandardCharsets;
+import java.time.Duration;
+import java.util.ArrayList;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.function.Consumer;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 @Component
 public class OpenAiSearchClient {
     // Must match the Worker's embedding contract and PostgreSQL vector(1536) columns.
     private static final int EMBEDDING_DIMENSIONS = 1536;
+    private static final int MAX_KEYWORDS = 5;
+    private static final Pattern INPUT_PLACEHOLDER = Pattern.compile("\\{(context|question)}");
     private final ObjectMapper mapper;
     private final RestClient client;
+    private final RestClient keywordClient;
 
     @Value("${openai.api-key:}")
     private String apiKey;
@@ -32,14 +44,81 @@ public class OpenAiSearchClient {
     private int maxOutputTokens;
     @Value("${openai.chat.instructions}")
     private String instructions;
+    @Value("${openai.chat.input-template}")
+    private String inputTemplate;
+    @Value("${openai.keywords.instructions}")
+    private String keywordInstructions;
 
     public OpenAiSearchClient(ObjectMapper mapper) {
         this.mapper = mapper;
         this.client = RestClient.builder().baseUrl("https://api.openai.com/v1").build();
+        var keywordRequests = new JdkClientHttpRequestFactory(HttpClient.newBuilder()
+                .connectTimeout(Duration.ofSeconds(3)).build());
+        keywordRequests.setReadTimeout(Duration.ofSeconds(10));
+        this.keywordClient = RestClient.builder().baseUrl("https://api.openai.com/v1")
+                .requestFactory(keywordRequests).build();
     }
 
     public String embeddingModel() {
         return embeddingModel;
+    }
+
+    /** Extracts search terms only; the original question is still used for semantic retrieval. */
+    public List<String> extractKeywords(String question) {
+        if (question == null || question.isBlank()) {
+            return List.of();
+        }
+        Map<String, Object> schema = Map.of(
+                "type", "object",
+                "properties", Map.of("keywords", Map.of(
+                        "type", "array", "items", Map.of("type", "string"), "maxItems", MAX_KEYWORDS)),
+                "required", List.of("keywords"),
+                "additionalProperties", false);
+        Map<String, Object> body = new LinkedHashMap<>();
+        body.put("model", chatModel);
+        body.put("instructions", keywordInstructions);
+        body.put("input", question);
+        body.put("text", Map.of("format", Map.of(
+                "type", "json_schema", "name", "search_keywords", "strict", true, "schema", schema)));
+        body.put("max_output_tokens", maxOutputTokens);
+        body.put("store", false);
+
+        JsonNode response = post(keywordClient, "/responses", body);
+        if (response == null || !"completed".equals(response.path("status").asText())) {
+            throw new IllegalStateException("키워드 추출 응답이 완료되지 않았습니다.");
+        }
+        for (JsonNode output : response.path("output")) {
+            for (JsonNode content : output.path("content")) {
+                if ("refusal".equals(content.path("type").asText())) {
+                    throw new IllegalStateException("키워드 추출 요청이 거부되었습니다.");
+                }
+            }
+        }
+        StringBuilder text = new StringBuilder();
+        collectOutputText(response.path("output"), text);
+        if (text.isEmpty()) {
+            throw new IllegalStateException("키워드 추출 응답이 비어 있습니다.");
+        }
+        JsonNode result;
+        try {
+            result = mapper.reader().with(DeserializationFeature.FAIL_ON_TRAILING_TOKENS)
+                    .readTree(text.toString());
+        } catch (JsonProcessingException invalidJson) {
+            throw new IllegalStateException("키워드 추출 응답이 올바른 JSON이 아닙니다.");
+        }
+        JsonNode keywords = result == null ? null : result.get("keywords");
+        if (result == null || !result.isObject() || result.size() != 1
+                || keywords == null || !keywords.isArray() || keywords.size() > MAX_KEYWORDS) {
+            throw new IllegalStateException("키워드 추출 응답 형식이 올바르지 않습니다.");
+        }
+        List<String> extracted = new ArrayList<>();
+        for (JsonNode keyword : keywords) {
+            if (!keyword.isTextual()) {
+                throw new IllegalStateException("키워드는 문자열이어야 합니다.");
+            }
+            extracted.add(keyword.asText());
+        }
+        return List.copyOf(extracted);
     }
 
     /** Embeds a single search question; document indexing belongs to the worker. */
@@ -69,7 +148,7 @@ public class OpenAiSearchClient {
         Map<String, Object> body = new LinkedHashMap<>();
         body.put("model", chatModel);
         body.put("instructions", instructions);
-        body.put("input", "문맥:\n" + context + "\n질문:\n" + question);
+        body.put("input", formatChatInput(question, context));
         body.put("max_output_tokens", maxOutputTokens);
         body.put("store", false);
 
@@ -94,7 +173,7 @@ public class OpenAiSearchClient {
         Map<String, Object> body = new LinkedHashMap<>();
         body.put("model", chatModel);
         body.put("instructions", instructions);
-        body.put("input", "문맥:\n" + context + "\n질문:\n" + question);
+        body.put("input", formatChatInput(question, context));
         body.put("max_output_tokens", maxOutputTokens);
         body.put("store", false);
         body.put("stream", true);
@@ -132,6 +211,12 @@ public class OpenAiSearchClient {
                 });
     }
 
+    private String formatChatInput(String question, String context) {
+        // Substitute only template placeholders; user content must remain unchanged.
+        return INPUT_PLACEHOLDER.matcher(inputTemplate).replaceAll(match ->
+                Matcher.quoteReplacement("context".equals(match.group(1)) ? context : question));
+    }
+
     private void handleStreamEvent(StringBuilder eventData, Consumer<String> onDelta) {
         if (eventData.isEmpty() || "[DONE]".contentEquals(eventData)) {
             return;
@@ -155,10 +240,14 @@ public class OpenAiSearchClient {
     }
 
     private JsonNode post(String uri, Object body) {
+        return post(client, uri, body);
+    }
+
+    private JsonNode post(RestClient requestClient, String uri, Object body) {
         if (apiKey == null || apiKey.isBlank()) {
             throw new IllegalStateException("OPENAI_API_KEY가 설정되지 않았습니다.");
         }
-        return client.post()
+        return requestClient.post()
                 .uri(uri)
                 .header(HttpHeaders.AUTHORIZATION, "Bearer " + apiKey)
                 .contentType(MediaType.APPLICATION_JSON)

@@ -1,6 +1,9 @@
 package com.example.search.chat;
 
 import com.example.common.AuthMemberId;
+import com.example.search.chat.api.ChatErrorCode;
+import com.example.search.chat.api.ChatException;
+import com.example.search.chat.policy.ChatPolicy;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
@@ -25,13 +28,15 @@ public class ChatController {
     @PostMapping("/api/v1/chat")
     public ResponseEntity<SemanticChatService.ChatResult> chat(@Valid @RequestBody ChatRequest request,
                                                                @AuthMemberId Long memberId) {
-        return ResponseEntity.ok(service.chat(memberId, request.question()));
+        String question = ChatPolicy.normalizeQuestion(request.question());
+        return ResponseEntity.ok(service.chat(memberId, question));
     }
 
     @PostMapping(value = "/api/v1/chat/stream", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
     public ResponseEntity<SseEmitter> stream(@Valid @RequestBody ChatRequest request, @AuthMemberId Long memberId) {
+        String question = ChatPolicy.normalizeQuestion(request.question());
         SseEmitter emitter = new SseEmitter(120_000L);
-        Thread.startVirtualThread(() -> stream(memberId, request.question(), emitter));
+        Thread.startVirtualThread(() -> stream(memberId, question, emitter));
         return ResponseEntity.ok()
                 .header("Cache-Control", "no-cache")
                 .header("X-Accel-Buffering", "no")
@@ -58,10 +63,10 @@ public class ChatController {
         } catch (Exception exception) {
             log.error("Chat SSE failed at stage={} memberId={}", stage, memberId, exception);
             try {
-                String message = "PREPARING".equals(stage)
-                        ? "문서 검색을 준비하는 중 오류가 발생했습니다."
-                        : "답변을 생성하는 중 오류가 발생했습니다.";
-                send(emitter, "error", Map.of("message", message, "stage", stage));
+                ChatErrorCode code = exception instanceof ChatException chatException
+                        ? chatException.code()
+                        : ("PREPARING".equals(stage) ? ChatErrorCode.SEARCH_FAILED : ChatErrorCode.MODEL_REQUEST_FAILED);
+                send(emitter, "error", Map.of("code", code, "message", code.message(), "stage", stage));
                 emitter.complete();
             } catch (Exception ignored) {
                 emitter.completeWithError(exception);
@@ -81,6 +86,6 @@ public class ChatController {
         }
     }
 
-    public record ChatRequest(@NotBlank @Size(max = 4000) String question) {
+    public record ChatRequest(@NotBlank @Size(max = ChatPolicy.MAX_QUESTION_LENGTH) String question) {
     }
 }
