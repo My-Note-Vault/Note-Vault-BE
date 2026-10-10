@@ -1,6 +1,7 @@
 package com.example.search.chat.api;
 
 import com.example.search.chat.policy.ChatPolicy;
+import com.example.search.chat.SemanticChatService.Source;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonValue;
 import jakarta.validation.constraints.NotBlank;
@@ -10,14 +11,44 @@ import jakarta.validation.constraints.Size;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.util.UUID;
+import java.util.List;
 
-/** V1 wire types. Session, run, usage and event endpoints are introduced in later steps. */
+/** V1 wire types. Usage and event endpoints are introduced in later steps. */
 public final class ChatApiContract {
     private ChatApiContract() {
     }
 
     public record CreateSessionRequest(
             @Size(max = ChatPolicy.MAX_SESSION_TITLE_LENGTH) String title) {
+    }
+
+    public record SessionResponse(UUID sessionId, String title, Instant createdAt, Instant updatedAt) {
+    }
+
+    public record CursorPage<T>(List<T> items, String nextCursor) {
+        public CursorPage {
+            items = List.copyOf(items);
+        }
+    }
+
+    public enum MessageRole {
+        USER, ASSISTANT;
+
+        @JsonValue
+        public String wireName() {
+            return name().toLowerCase(java.util.Locale.ROOT);
+        }
+    }
+
+    public enum MessageStatus {
+        PENDING, COMPLETED, INCOMPLETE
+    }
+
+    public record MessageResponse(UUID messageId, UUID runId, MessageRole role, String content,
+                                  List<Source> sources, long sequence, MessageStatus status, Instant createdAt) {
+        public MessageResponse {
+            sources = List.copyOf(sources);
+        }
     }
 
     /** sessionId comes from the URL; the authenticated user ID is never accepted in the body. */

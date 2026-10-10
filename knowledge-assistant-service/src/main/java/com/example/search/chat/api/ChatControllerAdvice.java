@@ -3,6 +3,7 @@ package com.example.search.chat.api;
 import org.springframework.core.Ordered;
 import org.springframework.core.annotation.Order;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.CacheControl;
 import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
@@ -16,6 +17,7 @@ public class ChatControllerAdvice {
     @ExceptionHandler(ChatException.class)
     public ResponseEntity<ChatApiContract.ErrorResponse> handleChatException(ChatException exception) {
         return ResponseEntity.status(exception.code().httpStatus())
+                .cacheControl(CacheControl.noStore())
                 .body(ChatApiContract.ErrorResponse.from(exception));
     }
 
@@ -23,6 +25,7 @@ public class ChatControllerAdvice {
             MethodArgumentTypeMismatchException.class})
     public ResponseEntity<ChatApiContract.ErrorResponse> handleInvalidRequest(Exception exception) {
         return ResponseEntity.badRequest()
+                .cacheControl(CacheControl.noStore())
                 .body(ChatApiContract.ErrorResponse.of(ChatErrorCode.INVALID_CHAT_REQUEST));
     }
 }
