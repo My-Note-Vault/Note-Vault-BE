@@ -26,8 +26,14 @@ public class KeywordExtractor {
     }
 
     public List<String> extract(String question) {
+        return extractDetailed(question).keywords();
+    }
+
+    public record Extraction(List<String> keywords, String source, long durationMs, String failureType) { }
+
+    public Extraction extractDetailed(String question) {
         if (question == null || question.isBlank()) {
-            return List.of();
+            return new Extraction(List.of(), "EMPTY", 0, null);
         }
         long started = System.nanoTime();
         try {
@@ -35,14 +41,14 @@ public class KeywordExtractor {
             log.info("Search keywords extracted: source=OPENAI, count={}, durationMs={}",
                     keywords.size(), elapsedMillis(started));
             log.debug("Search keywords: source=OPENAI, keywords={}", keywords);
-            return keywords;
+            return new Extraction(keywords, "OPENAI", elapsedMillis(started), null);
         } catch (RuntimeException failure) {
             List<String> keywords = extractWithRules(question);
             // Upstream exception messages can contain response bodies; log only the failure type.
             log.warn("Search keywords extracted: source=RULES, count={}, durationMs={}, failure={}",
                     keywords.size(), elapsedMillis(started), failure.getClass().getSimpleName());
             log.debug("Search keywords: source=RULES, keywords={}", keywords);
-            return keywords;
+            return new Extraction(keywords, "RULES", elapsedMillis(started), failure.getClass().getSimpleName());
         }
     }
 

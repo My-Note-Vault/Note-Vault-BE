@@ -78,6 +78,13 @@ public class IndexedChunkReader {
     @Transactional(readOnly = true)
     public Map<SearchSourceRef, Double> findSimilarTitles(
             Long memberId, String model, String query, double minSimilarity, int limit) {
+        return findSimilarTitles(memberId, model, query, minSimilarity, limit, null);
+    }
+
+    @Transactional(readOnly = true)
+    public Map<SearchSourceRef, Double> findSimilarTitles(
+            Long memberId, String model, String query, double minSimilarity, int limit,
+            RetrievalTrace.Collector trace) {
         configureVectorSearch();
         Map<String, Object> parameters = parameters(memberId, model, query);
         parameters.put("limit", limit);
@@ -103,12 +110,21 @@ public class IndexedChunkReader {
                  AND a.title = n.source_title
                 ORDER BY n.distance, n.source_type, n.source_id
                 """, parameters, (rows, row) -> readHit(rows));
-        return rankDocuments(hits, minSimilarity, limit);
+        Map<SearchSourceRef, Double> ranked = rankDocuments(hits, minSimilarity, limit);
+        observeSemantic(trace, "titleSemantic", hits, minSimilarity, limit, ranked.size());
+        return ranked;
     }
 
     @Transactional(readOnly = true)
     public Map<SearchSourceRef, Double> findSimilarDocuments(
             Long memberId, String model, String query, double minSimilarity, int limit) {
+        return findSimilarDocuments(memberId, model, query, minSimilarity, limit, null);
+    }
+
+    @Transactional(readOnly = true)
+    public Map<SearchSourceRef, Double> findSimilarDocuments(
+            Long memberId, String model, String query, double minSimilarity, int limit,
+            RetrievalTrace.Collector trace) {
         if (chunkCandidateLimit < limit || chunkCandidateLimit > 10000) {
             throw new IllegalArgumentException("semantic-chunk-candidate-limit must be between candidate-limit and 10000");
         }
@@ -119,6 +135,7 @@ public class IndexedChunkReader {
             parameters.put("limit", chunkLimit);
             List<SemanticHit> hits = jdbc.query(SIMILAR_CHUNKS, parameters, (rows, row) -> readHit(rows));
             Map<SearchSourceRef, Double> ranked = rankDocuments(hits, minSimilarity, limit);
+            observeSemantic(trace, "bodySemantic", hits, minSimilarity, chunkLimit, ranked.size());
             // Expand a bounded window if one long document occupies many chunk positions.
             if (ranked.size() >= limit || hits.size() < chunkLimit || chunkLimit == chunkCandidateLimit
                     || hits.getLast().similarity() < minSimilarity) {
@@ -133,10 +150,19 @@ public class IndexedChunkReader {
     public List<IndexedChunk> findBestChunks(Long memberId, String model, String query,
                                             String question, List<String> keywords,
                                             List<SearchSourceRef> sources, double minSimilarity, int limit) {
+        return findBestChunks(memberId, model, query, question, keywords, sources, minSimilarity, limit, null);
+    }
+
+    @Transactional(readOnly = true)
+    public List<IndexedChunk> findBestChunks(Long memberId, String model, String query,
+                                            String question, List<String> keywords,
+                                            List<SearchSourceRef> sources, double minSimilarity, int limit,
+                                            RetrievalTrace.Collector trace) {
         if (sources.isEmpty()) return List.of();
         Map<String, Object> parameters = parameters(memberId, model, query);
         parameters.put("minSimilarity", minSimilarity);
         parameters.put("limit", limit);
+        parameters.put("includeDiagnostics", trace != null);
         List<String> requested = new ArrayList<>();
         for (int index = 0; index < sources.size(); index++) {
             SearchSourceRef source = sources.get(index);
@@ -161,25 +187,56 @@ public class IndexedChunkReader {
                     JOIN accessible a ON a.source_type = r.source_type AND a.source_id = r.source_id
                                      AND a.version = r.version AND a.title = r.title
                     WHERE c.content IS NOT NULL AND BTRIM(c.content) <> ''
+                ), combined AS (
+                    SELECT *, (0.7 * GREATEST(0, LEAST(1,
+                                      (COALESCE(similarity, :minSimilarity) - :minSimilarity)
+                                      / (1 - :minSimilarity)))
+                                  + 0.3 * LEAST(1, keyword_score / 4.0)) AS selection_score
+                    FROM scored
                 ), ranked AS (
                     SELECT *, ROW_NUMBER() OVER (
                         PARTITION BY source_type, source_id
-                        ORDER BY (0.7 * GREATEST(0, LEAST(1,
-                                      (COALESCE(similarity, :minSimilarity) - :minSimilarity)
-                                      / (1 - :minSimilarity)))
-                                  + 0.3 * LEAST(1, keyword_score / 4.0)) DESC,
+                        ORDER BY selection_score DESC,
                                  similarity DESC NULLS LAST, id
                     ) AS position
-                    FROM scored
+                    FROM combined
                 )
                 SELECT id, source_type, source_id, resource_id, resource_type,
-                       source_title, source_version, content, similarity
-                FROM ranked WHERE position <= :limit
+                       source_title, source_version, content, similarity,
+                       keyword_score, selection_score, position
+                FROM ranked WHERE :includeDiagnostics OR position <= :limit
                 ORDER BY source_type, source_id, position
                 """.formatted(String.join(", ", requested), keywordScore);
-        return jdbc.query(sql, parameters, (rows, row) -> new IndexedChunk(rows.getLong("id"), readSource(rows),
-                rows.getLong("resource_id"), rows.getString("resource_type"), rows.getString("content"),
-                rows.getObject("similarity", Double.class)));
+        List<IndexedChunk> selected = new ArrayList<>();
+        jdbc.query(sql, parameters, (org.springframework.jdbc.core.RowCallbackHandler) rows -> {
+            IndexedChunk chunk = new IndexedChunk(rows.getLong("id"), readSource(rows),
+                    rows.getLong("resource_id"), rows.getString("resource_type"), rows.getString("content"),
+                    rows.getObject("similarity", Double.class));
+            int position = rows.getInt("position");
+            if (position <= limit) selected.add(chunk);
+            if (trace != null) {
+                String lowerContent = chunk.content().toLowerCase(Locale.ROOT);
+                List<String> matched = keywords.stream().filter(Objects::nonNull).map(String::strip)
+                        .filter(term -> !term.isEmpty() && lowerContent.contains(term.toLowerCase(Locale.ROOT)))
+                        .distinct().toList();
+                String excerpt = chunk.content().length() <= 300 ? chunk.content() : chunk.content().substring(0, 300) + "…";
+                trace.chunk(new RetrievalTrace.Chunk(chunk.source(), chunk.id(), position, chunk.similarity(),
+                        rows.getDouble("keyword_score"), rows.getDouble("selection_score"),
+                        position <= limit, matched, excerpt));
+            }
+        });
+        return List.copyOf(selected);
+    }
+
+    private void observeSemantic(RetrievalTrace.Collector trace, String field, List<SemanticHit> hits,
+                                 double minimum, int limit, int retained) {
+        if (trace == null) return;
+        trace.setting("semanticChunkCandidateLimit", chunkCandidateLimit);
+        trace.setting("hnswEfSearch", efSearch);
+        Map<SearchSourceRef, Double> scores = new LinkedHashMap<>();
+        for (SemanticHit hit : hits) scores.merge(hit.source(), hit.similarity(), Math::max);
+        trace.semanticScores(field, scores, minimum);
+        trace.semanticWindow(field, limit, hits.size(), retained);
     }
 
     private void configureVectorSearch() {

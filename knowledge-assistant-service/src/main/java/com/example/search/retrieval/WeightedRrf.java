@@ -27,21 +27,28 @@ public final class WeightedRrf {
         }
         Map<K, Double> fused = new HashMap<>();
         for (Ranking<K> ranking : rankings) {
-            List<Map.Entry<K, Double>> entries = new ArrayList<>(ranking.scores().entrySet());
-            entries.sort(Map.Entry.<K, Double>comparingByValue().reversed());
-            int rank = 0;
-            double previousScore = 0;
-            for (int index = 0; index < entries.size(); index++) {
-                Map.Entry<K, Double> entry = entries.get(index);
-                double score = entry.getValue();
-                if (index == 0 || score != previousScore) {
-                    rank = index + 1;
-                }
-                fused.merge(entry.getKey(),
-                        ranking.weight() / ((double) rankConstant + rank), Double::sum);
-                previousScore = score;
-            }
+            ranks(ranking.scores()).forEach((key, rank) -> fused.merge(key,
+                    ranking.weight() / ((double) rankConstant + rank), Double::sum));
         }
         return Map.copyOf(fused);
+    }
+
+    /** Competition ranking: tied scores share a rank (1, 1, 3). Used by fusion and diagnostics. */
+    public static <K> Map<K, Integer> ranks(Map<K, Double> scores) {
+        List<Map.Entry<K, Double>> entries = new ArrayList<>(scores.entrySet());
+        entries.sort(Map.Entry.<K, Double>comparingByValue().reversed());
+        Map<K, Integer> ranks = new HashMap<>();
+        int rank = 0;
+        double previousScore = 0;
+        for (int index = 0; index < entries.size(); index++) {
+            Map.Entry<K, Double> entry = entries.get(index);
+            double score = entry.getValue();
+            if (index == 0 || score != previousScore) {
+                rank = index + 1;
+            }
+            ranks.put(entry.getKey(), rank);
+            previousScore = score;
+        }
+        return Map.copyOf(ranks);
     }
 }

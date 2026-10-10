@@ -3,6 +3,7 @@ package com.example.search.chat;
 import com.example.search.chat.policy.ChatPolicy;
 import com.example.search.retrieval.SearchEvidence;
 import com.example.search.retrieval.HybridSearch;
+import com.example.search.retrieval.RetrievalTrace;
 import com.example.search.infrastructure.OpenAiSearchClient;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
@@ -32,9 +33,27 @@ public class SemanticChatService {
 
     public ChatPreparation prepare(Long memberId, String question) {
         String normalizedQuestion = ChatPolicy.normalizeQuestion(question);
-        List<SearchEvidence> found = search.search(memberId, normalizedQuestion,
+        return toPreparation(normalizedQuestion, search.search(memberId, normalizedQuestion,
                 keywordExtractor.extract(normalizedQuestion), openAi.embeddingModel(),
-                openAi.embedQuestion(normalizedQuestion), topK);
+                openAi.embedQuestion(normalizedQuestion), topK));
+    }
+
+    public EvaluationPreparation prepareForEvaluation(Long memberId, String question) {
+        long started = System.nanoTime();
+        String normalizedQuestion = ChatPolicy.normalizeQuestion(question);
+        KeywordExtractor.Extraction extracted = keywordExtractor.extractDetailed(normalizedQuestion);
+        long embeddingStarted = System.nanoTime();
+        String embedding = openAi.embedQuestion(normalizedQuestion);
+        long embeddingMs = (System.nanoTime() - embeddingStarted) / 1_000_000;
+        HybridSearch.SearchResult result = search.searchWithTrace(memberId, normalizedQuestion, extracted.keywords(),
+                openAi.embeddingModel(), embedding, topK);
+        SearchDiagnostics trace = new SearchDiagnostics(extracted,
+                new EmbeddingInfo(openAi.embeddingModel(), (int) embedding.chars().filter(c -> c == ',').count() + 1,
+                        embeddingMs), result.trace(), (System.nanoTime() - started) / 1_000_000);
+        return new EvaluationPreparation(toPreparation(normalizedQuestion, result.evidence()), trace);
+    }
+
+    private ChatPreparation toPreparation(String normalizedQuestion, List<SearchEvidence> found) {
         if (found.isEmpty()) {
             return new ChatPreparation(normalizedQuestion, "", List.of());
         }
@@ -68,6 +87,11 @@ public class SemanticChatService {
 
     public record ChatResult(String status, String answer, List<Source> sources) {
     }
+
+    public record EmbeddingInfo(String model, int dimensions, long durationMs) { }
+    public record SearchDiagnostics(KeywordExtractor.Extraction keywords, EmbeddingInfo embedding,
+                                    RetrievalTrace retrieval, long preparationDurationMs) { }
+    public record EvaluationPreparation(ChatPreparation preparation, SearchDiagnostics diagnostics) { }
 
     public record ChatPreparation(String question, String context, List<Source> sources) {
         public boolean hasContext() {
